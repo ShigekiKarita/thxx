@@ -7,13 +7,13 @@ LIBPATH := $(shell python -c "import torch.utils.cpp_extension as C; print(C.inc
 USE_CUDA := $(shell python -c "import torch; print(torch.cuda.is_available())")
 
 ifeq ($(USE_CUDA),True)
-	TORCH_LIBS=-ltorch -lcaffe2 -lcaffe2_gpu -lc10 -lc10_cuda -lmkldnn -lnccl -lmkl_rt -lcuda -lnvrtc -lnvToolsExt
+	TORCH_LIBS=-ltorch -lcaffe2 -lcaffe2_gpu -lc10 -lc10_cuda -lcuda -lnvrtc -lnvToolsExt # -lnccl -lmkldnn -lmkl_rt 
 else
 	TORCH_LIBS=-ltorch -lcaffe2 -lc10
 endif
 
 test: mnist data/train-images-idx3-ubyte
-	LD_LIBRARY_PATH=$(LIBPATH):$(LD_LIBRARY_PATH) ./mnist
+	./mnist
 
 mnist: mnist.cpp
 	$(CXX) mnist.cpp -o mnist $(INCPATH) -L$(LIBPATH) -Wl,-rpath,$(LIBPATH) -L$(CONDA_PREFIX)/lib -Wl,-rpath,$(CONDA_PREFIX)/lib $(TORCH_LIBS) -pthread -std=c++11 -D_GLIBCXX_USE_CXX11_ABI=0
