@@ -55,7 +55,6 @@ namespace memory {
         }
     }
 
-
     template <typename Elem>
     at::Tensor make_tensor(std::shared_ptr<kaldi::Vector<Elem>> ptr) {
         return make_tensor(ptr, ptr->Data(), ptr->Dim());
@@ -76,25 +75,16 @@ namespace dataset {
     using DocPtr = std::shared_ptr<rapidjson::Document>;
     using DocIter = typename rapidjson::Document::ConstMemberIterator;
 
-    /// read string and convert to int
-    int read_int(const rapidjson::Value& v) {
-        AT_ASSERT(v.IsString());
-        return std::stoi(v.GetString());
-    }
 
     /// read 1d token-id target from json
     at::Tensor read_target(DocIter iter) {
-        const auto& target = iter->value;
-
-        AT_ASSERT(target.HasMember("tokenid"));
-        std::istringstream iss(target["tokenid"].GetString());
-
-        AT_ASSERT(target.HasMember("olen"));
-        auto olen = read_int(target["olen"]);
+        const auto& target = iter->value["output"][0];
+        auto olen = target["shape"][0].GetInt();
 
         auto t = at::zeros({olen}, at::kLong);
         std::string id;
         long i = 0;
+        std::istringstream iss(target["tokenid"].GetString());
         while (std::getline(iss, id, ' ')) {
             t[i] = std::stoi(id);
             ++i;
@@ -107,26 +97,15 @@ namespace dataset {
     at::Tensor read_input(InputReaderPtr reader, DocIter iter) {
         // TODO assert reader has utt-id
         auto m = std::make_shared<kaldi::Matrix<float>>(reader->Value(iter->name.GetString()));
-        auto x = memory::make_tensor(m);
-        AT_ASSERT(x.size(0) == read_int(iter->value["ilen"]));
-        AT_ASSERT(x.size(1) == read_int(iter->value["idim"]));
-        return x;
+        return memory::make_tensor(m);
     }
 
     /// Handle sample information in json to read input and target tensors
     struct Sample {
-        Sample(DocPtr d, InputReaderPtr r, DocIter i)
-            : doc(d), reader(r), iter(i),
-              ilen(read_int(i->value["ilen"])),
-              olen(read_int(i->value["olen"])),
-              idim(read_int(i->value["idim"])),
-              odim(read_int(i->value["odim"]))
-            {}
-
-        DocPtr doc; // keep this for iter lifetime
+        DocPtr doc; // keep this for iter
         InputReaderPtr reader;
         DocIter iter;
-        std::int64_t ilen, olen, idim, odim;
+        std::int64_t ilen, idim, olen, odim;
 
         const rapidjson::Value& get(const char* query) const {
             AT_ASSERT(iter->value.HasMember(query));
@@ -153,20 +132,34 @@ namespace dataset {
     /// Gather input and target in sorted order by the length, and combine them into minibatch
     std::vector<std::vector<Sample>>
     make_batchset(DocPtr doc, InputReaderPtr reader, size_t batch_size=32,
-                       size_t max_length_in=800, size_t max_length_out=150,
-                       size_t max_num_batches=std::numeric_limits<size_t>::max()) {
+                  size_t max_length_in=800, size_t max_length_out=150,
+                  size_t max_num_batches=std::numeric_limits<size_t>::max()) {
+        // read json
         std::vector<Sample> keys;
-        // keys.reserve(data.Size());
-        AT_ASSERT(doc->HasMember("utts"));
         auto& data = doc->FindMember("utts")->value;
         for (auto d = data.MemberBegin(); d != data.MemberEnd(); ++d) {
-            keys.emplace_back(doc, reader, d);
+            std::cout << d->name.GetString() << std::endl;
+            Sample s = {
+                doc, reader, d,
+                d->value["input"][0]["shape"][0].GetInt(),
+                d->value["input"][0]["shape"][1].GetInt(),
+                d->value["output"][0]["shape"][0].GetInt(),
+                d->value["output"][0]["shape"][1].GetInt()
+            };
+            auto t = s.input();
+            std::cout << t.sizes() << std::endl;
+            auto y = s.target();
+            std::cout << y.sizes() << std::endl;
+            keys.push_back(s);
         }
+
         // shorter first
         std::sort(keys.begin(), keys.end(),
                   [](const Sample& a, const Sample& b) {
                       return a.olen < b.olen;
                   });
+
+        // merge samples into minibatches
         std::vector<std::vector<Sample>> batchset;
         size_t start_id = 0;
         while (true) {
@@ -176,7 +169,6 @@ namespace dataset {
             auto end_id = std::min<size_t>(keys.size(), start_id + b);
             std::vector<Sample> mb(keys.begin() + start_id, keys.begin() + end_id);
             batchset.push_back(mb);
-
             if (end_id == keys.size() || batchset.size() > max_num_batches) break;
             start_id = end_id;
         }

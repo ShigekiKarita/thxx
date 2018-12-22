@@ -134,9 +134,11 @@ int main(int argc, const char* argv[]) {
 
     auto train_json = dataset::read_json("espnet/egs/an4/asr1/dump/train_nodev/deltafalse/data.json");
     auto dev_json = dataset::read_json("espnet/egs/an4/asr1/dump/train_dev/deltafalse/data.json");
-    // auto train_scp = dataset::open_scp("espnet/egs/an4/asr1/dump/train_nodev/deltafalse/feats.scp");
-    // auto dev_scp = dataset::open_scp("espnet/egs/an4/asr1/dump/train_dev/deltafalse/feats.scp");
+    auto train_scp = dataset::open_scp("espnet/egs/an4/asr1/dump/train_nodev/deltafalse/feats.scp");
+    auto dev_scp = dataset::open_scp("espnet/egs/an4/asr1/dump/train_dev/deltafalse/feats.scp");
 
+    auto train_batch = dataset::make_batchset(train_json, train_scp);
+    auto dev_batch = dataset::make_batchset(dev_json, dev_scp);
 
     // Net model;
     // model.to(device);
