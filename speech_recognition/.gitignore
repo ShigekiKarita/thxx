@@ -1,0 +1,12 @@
+*
+!*/
+
+!*.md
+!*.py
+!*.h
+!*.hpp
+!*.cpp
+!Makefile
+!.gitignore
+
+rapidjson*
