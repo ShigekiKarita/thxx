@@ -67,13 +67,13 @@ TEST_CASE( "Lambda with mult in/out", "[meta]" ) {
         CHECK_THAT( a, testing::TensorEq(x) );
         CHECK_THAT( b, testing::TensorEq(x * 4) );
     }
-
 }
 
 TEST_CASE( "sequential and its submodules", "[meta]" ) {
     auto l1 = torch::nn::Linear(2, 3);
     auto l2 = torch::nn::Linear(3, 4);
-    auto seq = sequential(l1, l2);
+    // Actualy, you can use `auto` but this is useful for member type or doc
+    Seq<torch::nn::Linear, torch::nn::Linear> seq = sequential(l1, l2);
 
     // modified after submodules registered
     l1->weight.set_requires_grad(false);

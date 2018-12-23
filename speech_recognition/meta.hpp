@@ -8,17 +8,18 @@
 namespace meta {
     namespace detail {
         template<size_t N>
-        struct Apply {
+        struct TupleApply {
             template<typename F, typename T, typename... A>
             static inline auto apply(F && f, T && t, A &&... a) {
-                return Apply<N-1>::apply(std::forward<F>(f), std::forward<T>(t),
-                                         std::get<N-1>(std::forward<T>(t)), std::forward<A>(a)...
+                return TupleApply<N-1>::apply(
+                    std::forward<F>(f), std::forward<T>(t),
+                    std::get<N-1>(std::forward<T>(t)), std::forward<A>(a)...
                     );
             }
         };
 
         template<>
-        struct Apply<0> {
+        struct TupleApply<0> {
             template<typename F, typename T, typename... A>
             static inline auto apply(F && f, T &&, A &&... a) {
                 return std::forward<F>(f)(std::forward<A>(a)...);
@@ -27,8 +28,8 @@ namespace meta {
 
         template<typename F, typename T>
         inline auto tuple_apply(F && f, T && t) {
-            return Apply< std::tuple_size< std::decay_t<T>
-                                             >::value>::apply(std::forward<F>(f), std::forward<T>(t));
+            constexpr auto N = std::tuple_size< std::decay_t<T> > ::value;
+            return TupleApply<N>::apply(std::forward<F>(f), std::forward<T>(t));
         }
 
         template <typename Func>
@@ -41,22 +42,22 @@ namespace meta {
 
             template <typename ... Args>
             auto forward(Args&&... args) {
-                return func(args...);
+                return func(std::forward<Args>(args)...);
             }
 
             template <typename ... Args>
             auto forward(std::tuple<Args...> args) {
+                // TODO perfect forward with SFINAE enable_if<is_tuple<...>>
                 return tuple_apply(func, args);
             }
-
 
             template <size_t>
             void register_modules() {}
 
             template <size_t i, typename A, typename ... Args>
             void register_modules(A&& a, Args&& ... args) {
-                this->register_module(std::to_string(i), a);
-                this->template register_modules<i + 1>(args...);
+                this->register_module(std::to_string(i), std::forward<A>(a));
+                this->template register_modules<i + 1>(std::forward<Args>(args)...);
             }
         };
 
@@ -68,7 +69,8 @@ namespace meta {
         auto sequential_impl(A&& a, Args&& ... args) {
             return
                 [=](auto&& ... x) mutable {
-                    return sequential_impl(args...)(a->forward(x...));
+                    return sequential_impl(std::forward<Args>(args)...)(
+                        a->forward(std::forward<decltype(x)>(x)...));
                 };
         }
     }
@@ -80,14 +82,17 @@ namespace meta {
     };
 
     template <typename Func>
-    Lambda<Func> lambda(Func f) {
-        return Lambda<Func>(f);
+    Lambda<Func> lambda(Func&& f) {
+        return Lambda<Func>(std::forward<Func>(f));
     }
 
     template <typename ... Args>
-    auto sequential(Args ... args) {
+    auto sequential(Args&& ... args) {
         auto ret = lambda(detail::sequential_impl(args...));
-        ret->template register_modules<0>(args...);
+        ret->template register_modules<0>(std::forward<Args>(args)...);
         return ret;
     }
+
+    template <typename ... Modules>
+    using Seq = decltype(sequential(std::declval<Modules>()...));
 }
