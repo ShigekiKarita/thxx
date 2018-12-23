@@ -71,9 +71,16 @@ TEST_CASE( "transformer", "[net]" ) {
     namespace T = transformer;
     std::int64_t n_input = 6;
     auto x = torch::rand({2, 14, n_input});
-    auto m = pad_mask({6, 14}).unsqueeze(-2);
+    std::vector<std::int64_t> xlen = {6, 14};
+    auto m = pad_mask(xlen).unsqueeze(-2);
     auto y = torch::rand({2, 5, n_input});
-    auto ym = pad_mask({4, 5}).unsqueeze(-2).__and__(subsequent_mask(5).unsqueeze(0));
+    std::vector<std::int64_t> ylen = {4, 5};
+    auto ym = pad_mask(ylen).unsqueeze(-2).__and__(subsequent_mask(5).unsqueeze(0));
+
+    auto n_output = 5;
+    auto t = torch::rand({2, 5}) * n_output;
+    t = t.to(at::kLong);
+    auto tm = pad_mask(ylen).unsqueeze(-2).__and__(subsequent_mask(5).unsqueeze(0));
 
     T::Config conf;
     conf.d_model = n_input;
@@ -114,15 +121,11 @@ TEST_CASE( "transformer", "[net]" ) {
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
     {
-        auto n_output = 5;
-        auto t = torch::rand({2, 5}) * n_output;
-        t = t.to(at::kLong);
-        auto tm = pad_mask({4, 5}).unsqueeze(-2).__and__(subsequent_mask(5).unsqueeze(0));
-
         auto f = T::Decoder(n_output, conf);
         auto [p, pm] = f->forward(t, tm, x, m);
         p.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
-    Transformer model;
+    Transformer model(n_input, n_output, conf);
+    // auto loss = model.forward(x, xlen, t, ylen);
 }

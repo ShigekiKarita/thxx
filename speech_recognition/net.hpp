@@ -251,10 +251,10 @@ namespace net {
             }
 
             auto forward(torch::Tensor x, torch::Tensor mask) {
-                auto nx1 = this->norm1->forward(x);
-                auto x1 = x + this->dropout->forward(this->self_attn->forward(nx1, nx1, nx1, mask));
-                auto nx2 = this->norm2->forward(x1);
-                return std::make_tuple(x1 + this->dropout->forward(this->pff->forward(nx2)), mask);
+                auto nx = this->norm1->forward(x);
+                x = x + this->dropout->forward(this->self_attn->forward(nx, nx, nx, mask));
+                nx = this->norm2->forward(x);
+                return std::make_tuple(x + this->dropout->forward(this->pff->forward(nx)), mask);
             }
         };
         TORCH_MODULE(EncoderLayer);
@@ -296,13 +296,13 @@ namespace net {
 
             auto forward(torch::Tensor tgt, torch::Tensor tgt_mask,
                          torch::Tensor memory, torch::Tensor memory_mask) {
-                auto nx1 = this->norm1->forward(tgt);
-                auto x1 = tgt + this->dropout->forward(this->self_attn->forward(nx1, nx1, nx1, tgt_mask));
-                auto nx2 = this->norm2->forward(x1);
-                auto x2 = x1 + this->dropout->forward(this->src_attn->forward(nx2, memory, memory, memory_mask));
-                auto nx3 = this->norm3->forward(x2);
-                auto y = x2 + this->dropout->forward(this->pff->forward(nx3));
-                return std::make_tuple(y, tgt_mask);
+                auto nx = this->norm1->forward(tgt);
+                auto x = tgt + this->dropout->forward(this->self_attn->forward(nx, nx, nx, tgt_mask));
+                nx = this->norm2->forward(x);
+                x = x + this->dropout->forward(this->src_attn->forward(nx, memory, memory, memory_mask));
+                nx = this->norm3->forward(x);
+                x = x + this->dropout->forward(this->pff->forward(nx));
+                return std::make_tuple(x, tgt_mask);
             }
         };
         TORCH_MODULE(DecoderLayer);
@@ -367,6 +367,7 @@ namespace net {
             // submodules
             Conv2dSubsampling input_layer = nullptr;
             std::vector<EncoderLayer> layers;
+            LayerNorm norm = nullptr;
 
             EncoderImpl(std::int64_t idim, Config config)
                 : idim(idim), config(config) {
@@ -379,6 +380,7 @@ namespace net {
                 for (std::int64_t i = 0; i < this->config.elayers; ++i) {
                     this->layers.push_back(register_module("e" + std::to_string(i), EncoderLayer(this->config)));
                 }
+                this->norm = register_module("norm", LayerNorm(this->config.d_model));
             }
 
             auto forward(torch::Tensor x, torch::Tensor mask) {
@@ -386,7 +388,7 @@ namespace net {
                 for (auto& l : this->layers) {
                     std::tie(x, mask) = l->forward(x, mask);
                 }
-                return std::make_tuple(x, mask);
+                return std::make_tuple(this->norm->forward(x), mask);
             }
         };
         TORCH_MODULE(Encoder);
@@ -434,7 +436,56 @@ namespace net {
         TORCH_MODULE(Decoder);
     } // namespace transformer
 
-    class Transformer : torch::nn::Module {
+    class Transformer : public torch::nn::Module {
     public:
+        // configurations
+        std::int64_t idim;
+        std::int64_t odim;
+        transformer::Config config;
+        std::int64_t sos;
+        std::int64_t eos;
+        std::int64_t ignore_index = -1;
+
+        // submodules
+        transformer::Encoder encoder = nullptr;
+        transformer::Decoder decoder = nullptr;
+
+        Transformer(std::int64_t idim, std::int64_t odim, transformer::Config config)
+            : idim(idim), odim(odim), config(config), sos(odim-1), eos(odim-1) {
+            this->encoder = register_module("encoder", transformer::Encoder(idim, config));
+            this->decoder = register_module("decoder", transformer::Decoder(odim, config));
+        }
+
+        auto forward(torch::Tensor src, at::IntList src_length,
+                     torch::Tensor tgt, at::IntList tgt_length) {
+            auto src_mask = pad_mask(src_length).unsqueeze(-2);
+            std::cout << "forward" << std::endl;
+            auto [mem, mem_mask] = this->encoder->forward(src, src_mask);
+            std::cout << "encoder" << std::endl;
+
+            auto tgt_mask = pad_mask(tgt_length).unsqueeze(-2);
+            std::cout << tgt_mask.sizes() << std::endl;
+            tgt_mask = tgt_mask.__and__(subsequent_mask(tgt_mask.size(-1)).unsqueeze(0));
+            auto tgt_in = tgt.clone().fill_(this->ignore_index);
+            auto tgt_out = tgt.clone().fill_(this->ignore_index); // NOTE fill eos?
+            for (size_t i = 0; i < tgt_length.size(); ++i) {
+                auto n = tgt_length[i];
+                tgt_in[i][0] = this->sos;
+                tgt_in[i].slice(0, 1, n) = tgt[i].slice(0, 0, n - 1);
+
+                tgt_out[i].slice(0, 0, n - 1) = tgt[i].slice(0, 1, tgt_length[i]);
+                tgt_out[i][n - 1] = this->eos;
+            }
+            std::cout << "target" << std::endl;
+
+            std::cout << tgt_in.sizes() << tgt_mask.sizes() << mem.sizes() << mem_mask.sizes() << std::endl;
+            auto [pred, pred_mask] = this->decoder->forward(tgt_in, tgt_mask, mem, mem_mask);
+            std::cout << "decoder" << std::endl;
+            // TODO calc accuracy
+            auto target = tgt_out.view({-1});
+            auto loss = label_smoothing_kl_div(pred.view({target.size(0), -1}), target,
+                                               this->config.label_smoothing, this->ignore_index);
+            return loss;
+        }
     };
 }
