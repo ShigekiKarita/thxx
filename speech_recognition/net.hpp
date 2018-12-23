@@ -8,14 +8,17 @@
    - torch::Tensor API
    https://pytorch.org/cppdocs/api/classat_1_1_tensor.html
 */
+#pragma once
+
 #include <torch/torch.h>
 #include <cmath>
 #include <limits>
 
+#include "meta.hpp"
 
 namespace net {
     /// convert lengths {1, 2} to mask {{1, 0}, {1, 1}}
-    at::Tensor make_pad_mask(at::IntList lengths) {
+    at::Tensor pad_mask(at::IntList lengths) {
         auto maxlen = *std::max_element(lengths.begin(), lengths.end());
         auto bs = static_cast<std::int64_t>(lengths.size());
         auto ret = at::zeros({bs, maxlen}, at::kByte);
@@ -124,36 +127,53 @@ namespace net {
     TORCH_MODULE(MultiHeadedAttention);
 
     namespace transformer {
-        // auto positionwise_feedforward(std::int64_t d_model, std::int64_t d_model, float dropout_rate) {
-        //     return torch::nn::Sequential(
-        //         torch::nn::Linear(d_model, d_ff),
-        //         torch::nn::ReLU(),
-        //         torch::nn::Linear(d_ff, d_model)
-        //         );
-        // }
-        // class PoisitionwiseFeedForwardImpl : public torch::nn::Cloneable<PoisitionwiseFeedForwardImpl> {
-        // public:
-        //     // configurations
-        //     std::int64_t d_model;
-        //     std::int64_t d_ff;
-        //     float dropout_rate;
+        auto positionwise_feedforward(std::int64_t d_model, std::int64_t d_ff, float dropout_rate) {
+            return meta::sequential(
+                torch::nn::Linear(d_model, d_ff),
+                torch::nn::Dropout(dropout_rate),
+                meta::lambda(torch::relu),
+                torch::nn::Linear(d_ff, d_model)
+                );
+        }
 
-        //     // submodules
-        //     torch::nn::Linear w_1 = nullptr;
-        //     torch::nn::Linear w_2 = nullptr;
+        /// for convinience
+        using PositionwiseFeedforward = decltype(positionwise_feedforward(0,0,0.0));
 
-        //     PoisitionwiseFeedForwardImpl(std::int64_t d_model, std::int64_t d_ff, float dropout_rate)
-        //         : d_model(d_model), d_ff(d_ff), dropout_rate(dropout_rate) {}
+        class PositionalEncodingImpl : public torch::nn::Cloneable<PositionalEncodingImpl> {
+        public:
+            std::int64_t d_model;
+            float dropout_rate;
+            std::int64_t max_len;
+            float scale;
 
-        //     void reset override {
-        //         this
-        //     }
+            // submodules
+            torch::nn::Dropout dropout;
+            torch::Tensor pe;
 
-        //     torch::Tensor forward(torch::Tensor x) {
-        //         return
-        //     }
-        // };
-        // TORCH_MODULE(PoisitionwiseFeedForward);
+            PositionalEncodingImpl(std::int64_t d_model, float dropout_rate, std::int64_t max_len = 5000)
+                : d_model(d_model), dropout_rate(dropout_rate), max_len(max_len), scale(std::sqrt(d_model)) {
+                this->reset();
+            }
+
+            void reset() override {
+                torch::NoGradGuard no_grad;
+                this->dropout = this->register_module("dropout", torch::nn::Dropout(this->dropout_rate));
+                auto pe = torch::zeros({1, this->max_len, this->d_model});
+                auto position = torch::arange(0, max_len).unsqueeze(1);
+                auto div_term = torch::exp(torch::arange(0, d_model, 2) * -std::log(10000.0) / d_model);
+                pe.slice(2, 0, pe.size(2), 2) = torch::sin(position * div_term);
+                pe.slice(2, 1, pe.size(2), 2) = torch::cos(position * div_term);
+                this->pe = this->register_buffer("pe", pe);
+            }
+
+            auto forward(torch::Tensor x) {
+                torch::NoGradGuard no_grad;
+                auto y = this->scale * x + this->pe.slice(1, 0, x.size(1));
+                return this->dropout->forward(y);
+            }
+        };
+        TORCH_MODULE(PositionalEncoding);
+
     }
 
     class Transformer : torch::nn::Module {

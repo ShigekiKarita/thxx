@@ -1,3 +1,5 @@
+#pragma once
+
 #include <torch/torch.h>
 #include <cstddef>
 #include <tuple>
@@ -11,7 +13,7 @@ namespace meta {
         template<size_t N>
         struct TupleApply {
             template<typename F, typename T, typename... A>
-            static inline auto apply(F && f, T && t, A &&... a) {
+            static auto apply(F && f, T && t, A &&... a) {
                 return TupleApply<N-1>::apply(
                     std::forward<F>(f), std::forward<T>(t),
                     std::get<N-1>(std::forward<T>(t)), std::forward<A>(a)...
@@ -22,13 +24,13 @@ namespace meta {
         template<>
         struct TupleApply<0> {
             template<typename F, typename T, typename... A>
-            static inline auto apply(F && f, T &&, A &&... a) {
+            static auto apply(F && f, T &&, A &&... a) {
                 return std::forward<F>(f)(std::forward<A>(a)...);
             }
         };
 
         template<typename F, typename T>
-        inline auto tuple_apply(F && f, T && t) {
+        auto tuple_apply(F && f, T && t) {
             constexpr auto N = std::tuple_size< std::decay_t<T> > ::value;
             return TupleApply<N>::apply(std::forward<F>(f), std::forward<T>(t));
         }
@@ -70,7 +72,7 @@ namespace meta {
             }
         };
 
-        auto sequential_impl() {
+        static auto sequential_impl() {
             return [](auto&& x) { return x; };
         }
 

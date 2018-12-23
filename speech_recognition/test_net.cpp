@@ -7,8 +7,8 @@ using namespace net;
 TEST_CASE( "make_pad_mask", "[net]" ) {
     std::vector<std::int64_t> ls = {1, 2, 3, 4};
 
-    auto m = make_pad_mask(ls);
-    auto minv = make_pad_mask(ls) != 1;
+    auto m = pad_mask(ls);
+    auto minv = pad_mask(ls) != 1;
 
     for (std::int64_t i = 0; i < m.size(0); ++i) {
         for (std::int64_t j = 0; j < m.size(1); ++j) {
@@ -43,7 +43,7 @@ TEST_CASE( "MultiHeadedAttention", "[net]" ) {
     MultiHeadedAttention att(2, 6, 0.1);
     auto x = torch::rand({2, 5, 6});
     x.set_requires_grad(true);
-    auto m = (make_pad_mask({3, 5})).unsqueeze(-2);
+    auto m = (pad_mask({3, 5})).unsqueeze(-2);
     auto ret = att->forward(x, x, x, m);
 
     for (auto& p : att->parameters()) {
@@ -58,5 +58,16 @@ TEST_CASE( "MultiHeadedAttention", "[net]" ) {
 
 
 TEST_CASE( "Transformer", "[net]" ) {
+    namespace T = transformer;
+    auto x = torch::rand({5, 3, 2});
+    {
+        T::PositionwiseFeedforward ff = T::positionwise_feedforward(2, 3, 0.1);
+        auto y = ff->forward(x);
+    }
+    {
+        auto f = T::PositionalEncoding(2, 0.1, 10);
+        auto y = f->forward(x);
+    }
+
     Transformer model;
 }
