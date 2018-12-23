@@ -4,7 +4,7 @@
 using namespace net;
 
 
-TEST_CASE( "make_pad_mask", "[net]" ) {
+TEST_CASE( "pad_mask", "[net]" ) {
     std::vector<std::int64_t> ls = {1, 2, 3, 4};
 
     auto m = pad_mask(ls);
@@ -17,6 +17,12 @@ TEST_CASE( "make_pad_mask", "[net]" ) {
             CHECK(minv[i][j].template item<std::uint8_t>() != b);
         }
     }
+}
+
+TEST_CASE( "subsequent_mask", "[net]" ) {
+    auto m = subsequent_mask(3);
+    auto p = pad_mask({1, 2, 3});
+    CHECK_THAT( m, testing::TensorEq(p) );
 }
 
 TEST_CASE( "LayerNorm", "[net]" ) {
@@ -62,17 +68,23 @@ TEST_CASE( "Transformer", "[net]" ) {
     std::int64_t n_input = 6;
     auto x = torch::rand({2, 3, n_input});
     auto m = pad_mask({2, 3}).unsqueeze(-2);
+    auto y = torch::rand({2, 5, n_input});
+    auto ym = pad_mask({4, 5}).unsqueeze(-2).__and__(subsequent_mask(5).unsqueeze(0));
     {
         T::PositionwiseFeedforward ff = T::positionwise_feedforward(n_input, 3, 0.1);
-        auto y = ff->forward(x);
+        auto h = ff->forward(x);
     }
     {
         auto f = T::PositionalEncoding(n_input, 0.1, 10);
-        auto y = f->forward(x);
+        auto h = f->forward(x);
     }
     {
         auto f = T::EncoderLayer(n_input, 3, 4, 0.1);
-        auto [y, ymask] = f->forward(x, m);
+        auto [h, hm] = f->forward(x, m);
+    }
+    {
+        auto f = T::DecoderLayer(n_input, 3, 4, 0.1);
+        auto [p, pm] = f->forward(y, ym, x, m);
     }
 
     Transformer model;

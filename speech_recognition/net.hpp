@@ -28,6 +28,10 @@ namespace net {
         return ret;
     }
 
+    at::Tensor subsequent_mask(std::int64_t size, at::DeviceType device = at::kCPU) {
+        return at::ones({size, size}, at::kByte).to(device).tril_();
+    }
+
     class LayerNormImpl : public torch::nn::Cloneable<LayerNormImpl> {
     public:
         std::int64_t features;
@@ -210,6 +214,52 @@ namespace net {
             }
         };
         TORCH_MODULE(EncoderLayer);
+
+        class DecoderLayerImpl : public torch::nn::Cloneable<DecoderLayerImpl> {
+        public:
+            // configurations
+            std::int64_t d_model;
+            std::int64_t heads;
+            std::int64_t d_ff;
+            float dropout_rate;
+
+            // submodules
+            MultiHeadedAttention self_attn = nullptr;
+            MultiHeadedAttention src_attn = nullptr;
+            PositionwiseFeedforward pff = nullptr;
+            torch::nn::Dropout dropout = nullptr;
+            LayerNorm norm1 = nullptr;
+            LayerNorm norm2 = nullptr;
+            LayerNorm norm3 = nullptr;
+
+            DecoderLayerImpl(std::int64_t d_model, std::int64_t heads, std::int64_t d_ff, float dropout_rate)
+                : d_model(d_model), heads(heads), d_ff(d_ff), dropout_rate(dropout_rate) {
+                this->reset();
+            }
+
+            void reset() override {
+                this->self_attn = register_module("self_attn", MultiHeadedAttention(heads, d_model, dropout_rate));
+                this->src_attn = register_module("src_attn", MultiHeadedAttention(heads, d_model, dropout_rate));
+                this->pff = register_module("pff", positionwise_feedforward(d_model, d_ff, dropout_rate));
+                this->dropout = this->register_module("dropout", torch::nn::Dropout(this->dropout_rate));
+                this->norm1 = register_module("norm1", LayerNorm(d_model));
+                this->norm2 = register_module("norm2", LayerNorm(d_model));
+                this->norm3 = register_module("norm3", LayerNorm(d_model));
+            }
+
+            auto forward(torch::Tensor tgt, torch::Tensor tgt_mask,
+                         torch::Tensor memory, torch::Tensor memory_mask) {
+                auto nx1 = this->norm1->forward(tgt);
+                auto x1 = tgt + this->dropout->forward(this->self_attn->forward(nx1, nx1, nx1, tgt_mask));
+                auto nx2 = this->norm2->forward(x1);
+                auto x2 = x1 + this->dropout->forward(this->src_attn->forward(nx2, memory, memory, memory_mask));
+                auto nx3 = this->norm3->forward(x2);
+                auto y = x2 + this->dropout->forward(this->pff->forward(nx3));
+                return std::make_tuple(y, tgt_mask);
+            }
+        };
+        TORCH_MODULE(DecoderLayer);
+
     }
 
     class Transformer : torch::nn::Module {
