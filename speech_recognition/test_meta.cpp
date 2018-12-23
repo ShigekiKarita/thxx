@@ -1,16 +1,44 @@
-#include "testing.hpp"
 #include "meta.hpp"
+#include "testing.hpp"
 
 using namespace meta;
 
 
+struct TwiceRight {
+    auto operator()(torch::Tensor x1, torch::Tensor x2) {
+        return std::make_tuple(x1, x2 * 2);
+    }
+};
+
+TEST_CASE( "Lambda/Seq with mult in/out", "[meta]" ) {
+    auto x = torch::rand({2, 5, 6});
+
+    Lambda f1 = lambda(
+        [](auto&& x1, auto&& x2) { return std::make_tuple(torch::relu(x1), x2 * 2); });
+    {
+        auto [a, b] = f1->forward(x, x);
+        CHECK_THAT( a, testing::TensorEq(torch::relu(x)) );
+        CHECK_THAT( b, testing::TensorEq(x * 2) );
+    }
+
+    Lambda<TwiceRight> f2;
+    {
+        auto [a, b] = f2->forward(x, x);
+        CHECK_THAT( a, testing::TensorEq(x) );
+        CHECK_THAT( b, testing::TensorEq(x * 2) );
+    }
+
+    Seq<decltype(f1), Lambda<TwiceRight>> f3 = sequential(f1, f2);
+    {
+        auto [a, b] = f3->forward(x, x);
+        CHECK_THAT( a, testing::TensorEq(torch::relu(x)) );
+        CHECK_THAT( b, testing::TensorEq(x * 4) );
+    }
+}
+
 struct Twice {
     auto operator()(torch::Tensor x) {
         return x * 2;
-    }
-
-    auto operator()(torch::Tensor x1, torch::Tensor x2) {
-        return std::make_tuple(x1, x2 * 2);
     }
 };
 
@@ -37,36 +65,6 @@ TEST_CASE( "Lambda with single in/out", "[meta]" ) {
     auto f4 = sequential(f3, relu);
     auto x4 = f4->forward(x);
     CHECK_THAT( x4, testing::TensorEq(torch::relu(f3->forward(x))) );
-}
-
-TEST_CASE( "Lambda with mult in/out", "[meta]" ) {
-    auto x = torch::rand({2, 5, 6});
-
-    auto f1 = lambda([](auto&& x1, auto&& x2) { return std::make_tuple(x1, x2 * 2); });
-    {
-        auto [a, b] = f1->forward(x, x);
-        CHECK_THAT( a, testing::TensorEq(x) );
-        CHECK_THAT( b, testing::TensorEq(x * 2) );
-    }
-    {
-        auto [a, b] = f1->forward(std::make_tuple(x, x));
-        CHECK_THAT( a, testing::TensorEq(x) );
-        CHECK_THAT( b, testing::TensorEq(x * 2) );
-    }
-
-    Lambda<Twice> f2;
-    {
-        auto [a, b] = f2->forward(x, x);
-        CHECK_THAT( a, testing::TensorEq(x) );
-        CHECK_THAT( b, testing::TensorEq(x * 2) );
-    }
-
-    {
-        auto f3 = sequential(f1, f2);
-        auto [a, b] = f3->forward(x, x);
-        CHECK_THAT( a, testing::TensorEq(x) );
-        CHECK_THAT( b, testing::TensorEq(x * 4) );
-    }
 }
 
 TEST_CASE( "sequential and its submodules", "[meta]" ) {
