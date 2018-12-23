@@ -43,7 +43,7 @@ TEST_CASE( "MultiHeadedAttention", "[net]" ) {
     MultiHeadedAttention att(2, 6, 0.1);
     auto x = torch::rand({2, 5, 6});
     x.set_requires_grad(true);
-    auto m = (pad_mask({3, 5})).unsqueeze(-2);
+    auto m = pad_mask({3, 5}).unsqueeze(-2);
     auto ret = att->forward(x, x, x, m);
 
     for (auto& p : att->parameters()) {
@@ -59,14 +59,20 @@ TEST_CASE( "MultiHeadedAttention", "[net]" ) {
 
 TEST_CASE( "Transformer", "[net]" ) {
     namespace T = transformer;
-    auto x = torch::rand({5, 3, 2});
+    std::int64_t n_input = 6;
+    auto x = torch::rand({2, 3, n_input});
+    auto m = pad_mask({2, 3}).unsqueeze(-2);
     {
-        T::PositionwiseFeedforward ff = T::positionwise_feedforward(2, 3, 0.1);
+        T::PositionwiseFeedforward ff = T::positionwise_feedforward(n_input, 3, 0.1);
         auto y = ff->forward(x);
     }
     {
-        auto f = T::PositionalEncoding(2, 0.1, 10);
+        auto f = T::PositionalEncoding(n_input, 0.1, 10);
         auto y = f->forward(x);
+    }
+    {
+        auto f = T::EncoderLayer(n_input, 3, 4, 0.1);
+        auto [y, ymask] = f->forward(x, m);
     }
 
     Transformer model;

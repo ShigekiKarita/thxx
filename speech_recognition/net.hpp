@@ -174,6 +174,42 @@ namespace net {
         };
         TORCH_MODULE(PositionalEncoding);
 
+        class EncoderLayerImpl : public torch::nn::Cloneable<EncoderLayerImpl> {
+        public:
+            // configurations
+            std::int64_t d_model;
+            std::int64_t heads;
+            std::int64_t d_ff;
+            float dropout_rate;
+
+            // submodules
+            MultiHeadedAttention self_attn = nullptr;
+            PositionwiseFeedforward pff = nullptr;
+            torch::nn::Dropout dropout = nullptr;
+            LayerNorm norm1 = nullptr;
+            LayerNorm norm2 = nullptr;
+
+            EncoderLayerImpl(std::int64_t d_model, std::int64_t heads, std::int64_t d_ff, float dropout_rate)
+                : d_model(d_model), heads(heads), d_ff(d_ff), dropout_rate(dropout_rate) {
+                this->reset();
+            }
+
+            void reset() override {
+                this->self_attn = register_module("self_attn", MultiHeadedAttention(heads, d_model, dropout_rate));
+                this->pff = register_module("pff", positionwise_feedforward(d_model, d_ff, dropout_rate));
+                this->dropout = this->register_module("dropout", torch::nn::Dropout(this->dropout_rate));
+                this->norm1 = register_module("norm1", LayerNorm(d_model));
+                this->norm2 = register_module("norm2", LayerNorm(d_model));
+            }
+
+            auto forward(torch::Tensor x, torch::Tensor mask) {
+                auto nx1 = this->norm1->forward(x);
+                auto x1 = x + this->dropout->forward(this->self_attn->forward(nx1, nx1, nx1, mask));
+                auto nx2 = this->norm2->forward(x1);
+                return std::make_tuple(x1 + this->dropout->forward(this->pff->forward(nx2)), mask);
+            }
+        };
+        TORCH_MODULE(EncoderLayer);
     }
 
     class Transformer : torch::nn::Module {
