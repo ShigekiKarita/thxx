@@ -32,6 +32,26 @@ namespace net {
         return at::ones({size, size}, at::kByte).to(device).tril_();
     }
 
+    auto label_smoothing_kl_div(torch::Tensor pred, torch::Tensor target, float smoothing=0, std::int64_t padding_idx=-1) {
+        AT_ASSERT(0.0 <= smoothing);
+        AT_ASSERT(smoothing <= 1.0);
+        torch::Tensor true_dist, ignore_mask, n_valid;
+        {
+            torch::NoGradGuard no_grad;
+            true_dist = at::empty_like(pred);
+            auto n_false_class = pred.size(1) - 1; // only one for true
+            true_dist.fill_(smoothing / n_false_class);
+            ignore_mask = target == padding_idx;
+            auto t = target.detach().clone();
+            n_valid = (t != padding_idx).sum();
+            // NOTE this is only worked for ctc loss using 0 index for eps
+            t = t.masked_fill_(ignore_mask, 0); // avoid -1 index
+            true_dist.scatter_(1, t.unsqueeze(1), 1.0 - smoothing);
+        }
+        auto kl = torch::kl_div(pred.log_softmax(1), true_dist, Reduction::None);
+        return kl.masked_fill_(ignore_mask.unsqueeze(1), 0).sum() / n_valid;
+    }
+
     class LayerNormImpl : public torch::nn::Cloneable<LayerNormImpl> {
     public:
         std::int64_t features;

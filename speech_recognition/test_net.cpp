@@ -54,6 +54,19 @@ TEST_CASE( "MultiHeadedAttention", "[net]" ) {
 }
 
 
+TEST_CASE( "label_smoothing_kl_div", "[net]" ) {
+    std::int64_t n_output = 4;
+    auto x = torch::rand({5, n_output});
+    auto f = torch::nn::Linear(n_output, n_output);
+    auto p = f->forward(x);
+    auto t = (torch::rand({5}) * n_output).to(at::kLong);
+    t[1] = -1;
+    t[3] = -1;
+    auto loss = label_smoothing_kl_div(p, t, 0.1, -1);
+    loss.backward();
+    CHECK_THAT( *f, testing::HasGrad(true) );
+}
+
 TEST_CASE( "transformer", "[net]" ) {
     namespace T = transformer;
     std::int64_t n_input = 6;
