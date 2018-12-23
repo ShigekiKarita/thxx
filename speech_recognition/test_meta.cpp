@@ -20,6 +20,11 @@ TEST_CASE( "Lambda/Seq with mult in/out", "[meta]" ) {
         CHECK_THAT( a, testing::TensorEq(torch::relu(x)) );
         CHECK_THAT( b, testing::TensorEq(x * 2) );
     }
+    {
+        auto [a, b] = f1->forward(std::make_tuple(x, x));
+        CHECK_THAT( a, testing::TensorEq(torch::relu(x)) );
+        CHECK_THAT( b, testing::TensorEq(x * 2) );
+    }
 
     Lambda<TwiceRight> f2;
     {
