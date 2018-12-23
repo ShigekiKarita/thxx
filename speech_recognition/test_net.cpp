@@ -100,5 +100,16 @@ TEST_CASE( "transformer", "[net]" ) {
         h.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
+    {
+        auto n_output = 5;
+        auto t = torch::rand({2, 5}) * n_output;
+        t = t.to(at::kLong);
+        auto tm = pad_mask({4, 5}).unsqueeze(-2).__and__(subsequent_mask(5).unsqueeze(0));
+
+        auto f = T::Decoder(n_output, conf);
+        auto [p, pm] = f->forward(t, tm, x, m);
+        p.sum().backward();
+        CHECK_THAT( *f, testing::HasGrad(true) );
+    }
     Transformer model;
 }

@@ -150,6 +150,7 @@ namespace net {
             std::int64_t max_len_out = 150;
         };
 
+
         auto positionwise_feedforward(std::int64_t d_model, std::int64_t d_ff, float dropout_rate) {
             return meta::sequential(
                 torch::nn::Linear(d_model, d_ff),
@@ -161,6 +162,7 @@ namespace net {
 
         /// for convinience
         using PositionwiseFeedforward = decltype(positionwise_feedforward(0,0,0.0));
+
 
         class PositionalEncodingImpl : public torch::nn::Cloneable<PositionalEncodingImpl> {
         public:
@@ -196,6 +198,7 @@ namespace net {
             }
         };
         TORCH_MODULE(PositionalEncoding);
+
 
         class EncoderLayerImpl : public torch::nn::Cloneable<EncoderLayerImpl> {
         public:
@@ -236,6 +239,7 @@ namespace net {
         };
         TORCH_MODULE(EncoderLayer);
 
+
         class DecoderLayerImpl : public torch::nn::Cloneable<DecoderLayerImpl> {
         public:
             // configurations
@@ -252,6 +256,8 @@ namespace net {
             LayerNorm norm1 = nullptr;
             LayerNorm norm2 = nullptr;
             LayerNorm norm3 = nullptr;
+
+            DecoderLayerImpl(Config c) : DecoderLayerImpl(c.d_model, c.heads, c.d_ff, c.dropout_rate) {}
 
             DecoderLayerImpl(std::int64_t d_model, std::int64_t heads, std::int64_t d_ff, float dropout_rate)
                 : d_model(d_model), heads(heads), d_ff(d_ff), dropout_rate(dropout_rate) {
@@ -331,10 +337,14 @@ namespace net {
         };
         TORCH_MODULE(Conv2dSubsampling);
 
+
         class EncoderImpl : public torch::nn::Cloneable<EncoderImpl> {
         public:
+            // configurations
             std::int64_t idim;
             Config config;
+
+            // submodules
             Conv2dSubsampling input_layer = nullptr;
             std::vector<EncoderLayer> layers;
 
@@ -360,6 +370,48 @@ namespace net {
             }
         };
         TORCH_MODULE(Encoder);
+
+
+        class DecoderImpl : public torch::nn::Cloneable<DecoderImpl> {
+        public:
+            // configurations
+            std::int64_t odim;
+            Config config;
+
+            // submodules
+            torch::nn::Embedding embed = nullptr;
+            PositionalEncoding pe = nullptr;
+            std::vector<DecoderLayer> layers;
+            LayerNorm output_norm = nullptr;
+            torch::nn::Linear output_layer = nullptr;
+
+            DecoderImpl(std::int64_t odim, Config config)
+                : odim(odim), config(config) {
+                this->reset();
+            }
+
+            void reset() override {
+                this->embed = register_module("embed", torch::nn::Embedding(this->odim, this->config.d_model));
+                this->pe = register_module("pe", PositionalEncoding(this->config.d_model, this->config.dropout_rate));
+                this->output_norm = register_module("output_norm", LayerNorm(this->config.d_model));
+                this->output_layer = register_module("output_layer", torch::nn::Linear(this->config.d_model, this->odim));
+                this->layers.reserve(this->config.elayers);
+                for (std::int64_t i = 0; i < this->config.elayers; ++i) {
+                    this->layers.push_back(register_module("d" + std::to_string(i), DecoderLayer(this->config)));
+                }
+            }
+
+            auto forward(torch::Tensor tgt, torch::Tensor tgt_mask,
+                         torch::Tensor memory, torch::Tensor memory_mask) {
+                auto x = this->pe->forward(this->embed->forward(tgt));
+                for (auto& l : this->layers) {
+                    std::tie(x, tgt_mask) = l->forward(x, tgt_mask, memory, memory_mask);
+                }
+                x = this->output_layer->forward(this->output_norm->forward(x));
+                return std::make_tuple(x, tgt_mask);
+            }
+        };
+        TORCH_MODULE(Decoder);
     } // namespace transformer
 
     class Transformer : torch::nn::Module {
