@@ -7,6 +7,7 @@
 
 namespace meta {
     namespace detail {
+        /// unpack tuple and apply to function
         template<size_t N>
         struct TupleApply {
             template<typename F, typename T, typename... A>
@@ -32,8 +33,14 @@ namespace meta {
             return TupleApply<N>::apply(std::forward<F>(f), std::forward<T>(t));
         }
 
+        /// detect std::tuple by template specialization
+        template <typename> struct is_tuple: std::false_type {};
+        template <typename ...T> struct is_tuple<std::tuple<T...>>: std::true_type {};
+        template <typename ...T> struct is_tuple<const std::tuple<T...>>: std::true_type {};
+
         template <typename Func>
         class LambdaImpl : public torch::nn::Module {
+            struct Disabled;
         public:
             Func func;
 
@@ -45,10 +52,12 @@ namespace meta {
                 return func(std::forward<Args>(args)...);
             }
 
-            template <typename ... Args>
-            auto forward(std::tuple<Args...> args) {
-                // TODO perfect forward with SFINAE enable_if<is_tuple<...>>
-                return tuple_apply(func, args);
+            template <typename A,
+                      typename DONT_USE = std::enable_if_t<is_tuple<A>::value, Disabled> >
+            auto forward(A&& args) {
+                static_assert(std::is_same<DONT_USE, Disabled>::value,
+                              "do not assign any value to DONT_USE");
+                return tuple_apply(func, std::forward<A>(args));
             }
 
             template <size_t>
