@@ -9,6 +9,8 @@
 #include <algorithm>
 #include <utility>
 
+#include <torch/torch.h>
+
 /// for kaldi
 #include <kaldi-io.h>
 #include <kaldi-table.h>
@@ -127,6 +129,10 @@ namespace dataset {
             AT_ASSERT(doc);
             return read_target(iter);
         }
+
+        static bool compare(const Sample& a, const Sample& b) {
+            return a.olen < b.olen;
+        }
     };
 
     /// Gather input and target in sorted order by the length, and combine them into minibatch
@@ -138,7 +144,6 @@ namespace dataset {
         std::vector<Sample> keys;
         auto& data = doc->FindMember("utts")->value;
         for (auto d = data.MemberBegin(); d != data.MemberEnd(); ++d) {
-            std::cout << d->name.GetString() << std::endl;
             Sample s = {
                 doc, reader, d,
                 d->value["input"][0]["shape"][0].GetInt(),
@@ -146,18 +151,17 @@ namespace dataset {
                 d->value["output"][0]["shape"][0].GetInt(),
                 d->value["output"][0]["shape"][1].GetInt()
             };
-            auto t = s.input();
-            std::cout << t.sizes() << std::endl;
-            auto y = s.target();
-            std::cout << y.sizes() << std::endl;
+            // NOTE: for debug
+            // std::cout << d->name.GetString() << std::endl;
+            // auto t = s.input();
+            // std::cout << t.sizes() << std::endl;
+            // auto y = s.target();
+            // std::cout << y.sizes() << std::endl;
             keys.push_back(s);
         }
 
         // shorter first
-        std::sort(keys.begin(), keys.end(),
-                  [](const Sample& a, const Sample& b) {
-                      return a.olen < b.olen;
-                  });
+        std::sort(keys.begin(), keys.end(), Sample::compare);
 
         // merge samples into minibatches
         std::vector<std::vector<Sample>> batchset;
