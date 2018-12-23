@@ -51,6 +51,17 @@ namespace meta {
             }
         };
 
+        template <typename T, typename ... Args>
+        auto apply_func_or_module(T&& f, Args&& ... args)
+            -> std::enable_if_t<std::is_function<T>::value, decltype(auto)> {
+            return f(std::forward<Args>(args)...);
+        }
+
+        template <typename T, typename ... Args>
+        auto apply_func_or_module(T&& f, Args&& ... args) {
+            return f->forward(std::forward<Args>(args)...);
+        }
+
         auto sequential_impl() {
             return [](auto&& x) { return x; };
         }
@@ -63,7 +74,7 @@ namespace meta {
                 [=]
                 (auto&& ... x) mutable {
                     auto f = sequential_impl(std::forward<Args>(args)...);
-                    return f(a->forward(x...));
+                    return f(apply_func_or_module(a, x...));
                 };
         }
     }
