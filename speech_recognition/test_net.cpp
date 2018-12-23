@@ -63,11 +63,11 @@ TEST_CASE( "MultiHeadedAttention", "[net]" ) {
 }
 
 
-TEST_CASE( "Transformer", "[net]" ) {
+TEST_CASE( "transformer", "[net]" ) {
     namespace T = transformer;
     std::int64_t n_input = 6;
-    auto x = torch::rand({2, 3, n_input});
-    auto m = pad_mask({2, 3}).unsqueeze(-2);
+    auto x = torch::rand({2, 14, n_input});
+    auto m = pad_mask({6, 14}).unsqueeze(-2);
     auto y = torch::rand({2, 5, n_input});
     auto ym = pad_mask({4, 5}).unsqueeze(-2).__and__(subsequent_mask(5).unsqueeze(0));
     {
@@ -75,7 +75,7 @@ TEST_CASE( "Transformer", "[net]" ) {
         auto h = ff->forward(x);
     }
     {
-        auto f = T::PositionalEncoding(n_input, 0.1, 10);
+        auto f = T::PositionalEncoding(n_input, 0.1);
         auto h = f->forward(x);
     }
     {
@@ -85,6 +85,10 @@ TEST_CASE( "Transformer", "[net]" ) {
     {
         auto f = T::DecoderLayer(n_input, 3, 4, 0.1);
         auto [p, pm] = f->forward(y, ym, x, m);
+    }
+    {
+        auto f = T::Conv2dSubsampling(n_input, 10, 0.1);
+        auto [h, hm] = f->forward(x, m);
     }
 
     Transformer model;

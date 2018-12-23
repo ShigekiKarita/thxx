@@ -171,6 +171,7 @@ namespace net {
             }
 
             auto forward(torch::Tensor x) {
+                AT_ASSERT(x.size(1) <= this->max_len);
                 torch::NoGradGuard no_grad;
                 auto y = this->scale * x + this->pe.slice(1, 0, x.size(1));
                 return this->dropout->forward(y);
@@ -260,6 +261,55 @@ namespace net {
         };
         TORCH_MODULE(DecoderLayer);
 
+
+        class Conv2dSubsamplingImpl : public torch::nn::Cloneable<Conv2dSubsamplingImpl> {
+        public:
+            // configurations
+            std::int64_t n_freq;
+            std::int64_t n_feat;
+            float dropout_rate;
+
+            // submodules
+            torch::nn::Conv2d conv1 = nullptr;
+            torch::nn::Conv2d conv2 = nullptr;
+            torch::nn::Linear out = nullptr;
+            PositionalEncoding pe = nullptr;
+
+            Conv2dSubsamplingImpl(std::int64_t n_freq, std::int64_t n_feat, float dropout_rate)
+                : n_freq(n_freq), n_feat(n_feat), dropout_rate(dropout_rate) {
+                this->reset();
+            }
+
+            void reset() override {
+                auto c1 = torch::nn::Conv2dOptions(1, n_feat, 3).stride(2);
+                auto c2 = torch::nn::Conv2dOptions(n_feat, n_feat, 3).stride(2);
+                this->conv1 = register_module("conv1", torch::nn::Conv2d(c1));
+                this->conv2 = register_module("conv2", torch::nn::Conv2d(c2));
+                this->out = register_module("out", torch::nn::Linear(n_feat * (n_freq / 4), n_feat));
+                this->pe = register_module("pe", PositionalEncoding(n_feat, dropout_rate));
+            }
+
+            auto subsample_mask(torch::Tensor mask) {
+                for (std::int64_t i = 0; i < 2; ++i) {
+                    mask = mask.slice(2, 0, mask.size(2) - 2, 2);
+                }
+                return mask;
+            }
+
+            auto forward(torch::Tensor x, torch::Tensor mask) {
+                AT_ASSERT(x.dim() == 3); // (b, t, f)
+                AT_ASSERT(x.size(2) == n_freq);
+                auto c1 = this->conv1->forward(x.unsqueeze(1)).relu();
+                auto c2 = this->conv2->forward(c1).relu();
+
+                auto n_batch = c2.size(0);
+                auto n_time = c2.size(2);
+                auto h = c2.transpose(1, 2).contiguous().view({n_batch, n_time, -1});
+                auto y = this->pe->forward(this->out->forward(h));
+                return std::make_tuple(y, this->subsample_mask(mask));
+            }
+        };
+        TORCH_MODULE(Conv2dSubsampling);
     }
 
     class Transformer : torch::nn::Module {
