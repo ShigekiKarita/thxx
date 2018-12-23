@@ -34,11 +34,8 @@ TEST_CASE( "LayerNorm", "[net]" ) {
     CHECK_THAT( y, testing::TensorEq(x_) );
 
     // test grad
-    CHECK_FALSE( norm->scale.grad().defined() );
-    CHECK_FALSE( norm->bias.grad().defined() );
     y.sum().backward();
-    CHECK( norm->scale.grad().defined() );
-    CHECK( norm->bias.grad().defined() );
+    CHECK_THAT( *norm, testing::HasGrad(true) );
 
     auto params = norm->parameters();
     CHECK_THAT( params[0], testing::TensorEq(norm->scale) );
@@ -51,14 +48,8 @@ TEST_CASE( "MultiHeadedAttention", "[net]" ) {
     x.set_requires_grad(true);
     auto m = pad_mask({3, 5}).unsqueeze(-2);
     auto ret = att->forward(x, x, x, m);
-
-    for (auto& p : att->parameters()) {
-        CHECK_FALSE( p.grad().defined() );
-    }
     ret.sum().backward();
-    for (auto& p : att->parameters()) {
-        CHECK( p.grad().defined() );
-    }
+    CHECK_THAT( *att, testing::HasGrad(true) );
     // std::cout << att->attn[0][0] << std::endl;
 }
 
@@ -70,6 +61,11 @@ TEST_CASE( "transformer", "[net]" ) {
     auto m = pad_mask({6, 14}).unsqueeze(-2);
     auto y = torch::rand({2, 5, n_input});
     auto ym = pad_mask({4, 5}).unsqueeze(-2).__and__(subsequent_mask(5).unsqueeze(0));
+
+    T::Config conf;
+    conf.d_model = n_input;
+    conf.d_ff = 3;
+    conf.heads = 3;
     {
         T::PositionwiseFeedforward ff = T::positionwise_feedforward(n_input, 3, 0.1);
         auto h = ff->forward(x);
@@ -94,6 +90,12 @@ TEST_CASE( "transformer", "[net]" ) {
     }
     {
         auto f = T::Conv2dSubsampling(n_input, 10, 0.1);
+        auto [h, hm] = f->forward(x, m);
+        h.sum().backward();
+        CHECK_THAT( *f, testing::HasGrad(true) );
+    }
+    {
+        auto f = T::Encoder(n_input, conf);
         auto [h, hm] = f->forward(x, m);
         h.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
