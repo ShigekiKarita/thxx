@@ -45,7 +45,7 @@ namespace net {
             auto t = target.detach().clone();
             n_valid = (t != padding_idx).sum();
             // NOTE this is only worked for ctc loss using 0 index for eps
-            t = t.masked_fill_(ignore_mask, 0); // avoid -1 index
+            // if (pa) t = t.masked_fill_(ignore_mask, 0); // avoid -1 index
             true_dist.scatter_(1, t.unsqueeze(1), 1.0 - smoothing);
         }
         auto kl = torch::kl_div(pred.log_softmax(1), true_dist, Reduction::None);
@@ -425,7 +425,8 @@ namespace net {
 
             auto forward(torch::Tensor tgt, torch::Tensor tgt_mask,
                          torch::Tensor memory, torch::Tensor memory_mask) {
-                auto x = this->pe->forward(this->embed->forward(tgt));
+                auto e = this->embed->forward(tgt);
+                auto x = this->pe->forward(e);
                 for (auto& l : this->layers) {
                     std::tie(x, tgt_mask) = l->forward(x, tgt_mask, memory, memory_mask);
                 }
@@ -444,27 +445,24 @@ namespace net {
         transformer::Config config;
         std::int64_t sos;
         std::int64_t eos;
-        std::int64_t ignore_index = -1;
+        std::int64_t ignore_index;
 
         // submodules
         transformer::Encoder encoder = nullptr;
         transformer::Decoder decoder = nullptr;
 
         Transformer(std::int64_t idim, std::int64_t odim, transformer::Config config)
-            : idim(idim), odim(odim), config(config), sos(odim-1), eos(odim-1) {
+            : idim(idim), odim(odim), config(config), sos(odim-1), eos(odim-1), ignore_index(odim) {
             this->encoder = register_module("encoder", transformer::Encoder(idim, config));
-            this->decoder = register_module("decoder", transformer::Decoder(odim, config));
+            this->decoder = register_module("decoder", transformer::Decoder(odim + 1, config));
         }
 
         auto forward(torch::Tensor src, at::IntList src_length,
                      torch::Tensor tgt, at::IntList tgt_length) {
             auto src_mask = pad_mask(src_length).unsqueeze(-2);
-            std::cout << "forward" << std::endl;
             auto [mem, mem_mask] = this->encoder->forward(src, src_mask);
-            std::cout << "encoder" << std::endl;
 
             auto tgt_mask = pad_mask(tgt_length).unsqueeze(-2);
-            std::cout << tgt_mask.sizes() << std::endl;
             tgt_mask = tgt_mask.__and__(subsequent_mask(tgt_mask.size(-1)).unsqueeze(0));
             auto tgt_in = tgt.clone().fill_(this->ignore_index);
             auto tgt_out = tgt.clone().fill_(this->ignore_index); // NOTE fill eos?
@@ -476,11 +474,8 @@ namespace net {
                 tgt_out[i].slice(0, 0, n - 1) = tgt[i].slice(0, 1, tgt_length[i]);
                 tgt_out[i][n - 1] = this->eos;
             }
-            std::cout << "target" << std::endl;
 
-            std::cout << tgt_in.sizes() << tgt_mask.sizes() << mem.sizes() << mem_mask.sizes() << std::endl;
             auto [pred, pred_mask] = this->decoder->forward(tgt_in, tgt_mask, mem, mem_mask);
-            std::cout << "decoder" << std::endl;
             // TODO calc accuracy
             auto target = tgt_out.view({-1});
             auto loss = label_smoothing_kl_div(pred.view({target.size(0), -1}), target,
