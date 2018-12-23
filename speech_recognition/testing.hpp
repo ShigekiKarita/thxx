@@ -21,4 +21,28 @@ namespace testing {
         }
     };
 
+    class HasGrad : public Catch::MatcherBase<torch::nn::Module> {
+    public:
+        bool has;
+        std::string s;
+        HasGrad(bool has) : has(has), s(has ? " " : " not ") {}
+
+        virtual bool match(const torch::nn::Module& m) const override {
+            bool ret = true;
+            for (const auto& p : m.named_parameters()) {
+                if (p->grad().defined() != this->has) {
+                    WARN("param: [" + p.key() + "] should" + this->s + "have a grad");
+                    ret = false;
+                }
+            }
+            return ret;
+        }
+
+        virtual std::string describe() const {
+            std::ostringstream ss;
+            ss << "should" << this->s << "have a grad";
+            return ss.str();
+        }
+    };
+
 }

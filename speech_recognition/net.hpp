@@ -52,7 +52,7 @@ namespace net {
         torch::Tensor forward(torch::Tensor x) {
             auto mean = x.mean(-1, true);
             auto std = x.std(-1, true).unsqueeze(-1);
-            return this->scale * (x - mean) / std + this->bias; // .expand_as(x); // this->scale * (x - mean) / (std + eps) + this->bias;
+            return this->scale * (x - mean) / std + this->bias;
         }
     };
     TORCH_MODULE(LayerNorm);
@@ -131,6 +131,25 @@ namespace net {
     TORCH_MODULE(MultiHeadedAttention);
 
     namespace transformer {
+
+        struct Config {
+            // model
+            std::int64_t d_model = 256;
+            std::int64_t d_ff = 1024;
+            std::int64_t heads = 4;
+            std::int64_t elayers = 6;
+            std::int64_t dlayers = 6;
+            float dropout_rate = 0.1;
+            float label_smoothing = 0.1;
+
+            // training
+            float lr = 10.0;
+            std::int64_t warmup_steps = 25000;
+            std::int64_t batch_size = 64;
+            std::int64_t max_len_in = 512;
+            std::int64_t max_len_out = 150;
+        };
+
         auto positionwise_feedforward(std::int64_t d_model, std::int64_t d_ff, float dropout_rate) {
             return meta::sequential(
                 torch::nn::Linear(d_model, d_ff),
@@ -172,7 +191,6 @@ namespace net {
 
             auto forward(torch::Tensor x) {
                 AT_ASSERT(x.size(1) <= this->max_len);
-                torch::NoGradGuard no_grad;
                 auto y = this->scale * x + this->pe.slice(1, 0, x.size(1));
                 return this->dropout->forward(y);
             }
@@ -193,6 +211,8 @@ namespace net {
             torch::nn::Dropout dropout = nullptr;
             LayerNorm norm1 = nullptr;
             LayerNorm norm2 = nullptr;
+
+            EncoderLayerImpl(Config c) : EncoderLayerImpl(c.d_model, c.heads, c.d_ff, c.dropout_rate) {}
 
             EncoderLayerImpl(std::int64_t d_model, std::int64_t heads, std::int64_t d_ff, float dropout_rate)
                 : d_model(d_model), heads(heads), d_ff(d_ff), dropout_rate(dropout_rate) {
@@ -310,7 +330,37 @@ namespace net {
             }
         };
         TORCH_MODULE(Conv2dSubsampling);
-    }
+
+        class EncoderImpl : public torch::nn::Cloneable<EncoderImpl> {
+        public:
+            std::int64_t idim;
+            Config config;
+            Conv2dSubsampling input_layer = nullptr;
+            std::vector<EncoderLayer> layers;
+
+            EncoderImpl(std::int64_t idim, Config config)
+                : idim(idim), config(config) {
+                this->reset();
+            }
+
+            void reset() override {
+                this->input_layer = register_module("input_layer", Conv2dSubsampling(this->idim, this->config.d_model, this->config.dropout_rate));
+                this->layers.reserve(this->config.elayers);
+                for (std::int64_t i = 0; i < this->config.elayers; ++i) {
+                    this->layers.push_back(register_module("e" + std::to_string(i), EncoderLayer(this->config)));
+                }
+            }
+
+            auto forward(torch::Tensor x, torch::Tensor mask) {
+                std::tie(x, mask) = this->input_layer->forward(x, mask);
+                for (auto& l : this->layers) {
+                    std::tie(x, mask) = l->forward(x, mask);
+                }
+                return std::make_tuple(x, mask);
+            }
+        };
+        TORCH_MODULE(Encoder);
+    } // namespace transformer
 
     class Transformer : torch::nn::Module {
     public:
