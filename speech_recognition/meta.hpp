@@ -11,8 +11,8 @@ namespace meta {
         struct Apply {
             template<typename F, typename T, typename... A>
             static inline auto apply(F && f, T && t, A &&... a) {
-                return Apply<N-1>::apply(::std::forward<F>(f), ::std::forward<T>(t),
-                                         ::std::get<N-1>(::std::forward<T>(t)), ::std::forward<A>(a)...
+                return Apply<N-1>::apply(std::forward<F>(f), std::forward<T>(t),
+                                         std::get<N-1>(std::forward<T>(t)), std::forward<A>(a)...
                     );
             }
         };
@@ -21,16 +21,15 @@ namespace meta {
         struct Apply<0> {
             template<typename F, typename T, typename... A>
             static inline auto apply(F && f, T &&, A &&... a) {
-                return ::std::forward<F>(f)(::std::forward<A>(a)...);
+                return std::forward<F>(f)(std::forward<A>(a)...);
             }
         };
 
         template<typename F, typename T>
-        inline auto apply(F && f, T && t) {
-            return Apply< ::std::tuple_size< ::std::decay_t<T>
-                                             >::value>::apply(::std::forward<F>(f), ::std::forward<T>(t));
+        inline auto tuple_apply(F && f, T && t) {
+            return Apply< std::tuple_size< std::decay_t<T>
+                                             >::value>::apply(std::forward<F>(f), std::forward<T>(t));
         }
-
 
         template <typename Func>
         class LambdaImpl : public torch::nn::Module {
@@ -42,25 +41,24 @@ namespace meta {
 
             template <typename ... Args>
             auto forward(Args&&... args) {
-                return func(std::forward<Args>(args)...);
+                return func(args...);
             }
 
             template <typename ... Args>
-            auto forward(const std::tuple<Args...>& args) {
-                return apply(func, args);
+            auto forward(std::tuple<Args...> args) {
+                return tuple_apply(func, args);
+            }
+
+
+            template <size_t>
+            void register_modules() {}
+
+            template <size_t i, typename A, typename ... Args>
+            void register_modules(A&& a, Args&& ... args) {
+                this->register_module(std::to_string(i), a);
+                this->template register_modules<i + 1>(args...);
             }
         };
-
-        template <typename T, typename ... Args>
-        auto apply_func_or_module(T&& f, Args&& ... args)
-            -> std::enable_if_t<std::is_function<T>::value, decltype(auto)> {
-            return f(std::forward<Args>(args)...);
-        }
-
-        template <typename T, typename ... Args>
-        auto apply_func_or_module(T&& f, Args&& ... args) {
-            return f->forward(std::forward<Args>(args)...);
-        }
 
         auto sequential_impl() {
             return [](auto&& x) { return x; };
@@ -69,12 +67,8 @@ namespace meta {
         template <typename A, typename ... Args>
         auto sequential_impl(A&& a, Args&& ... args) {
             return
-                // NOTE: cannot forward these ? http://www.open-std.org/jtc1/sc22/wg21/docs/papers/2017/p0780r0.html
-                // [=, a=std::forward<A>(a), args=std::forward<Args>(args)...]
-                [=]
-                (auto&& ... x) mutable {
-                    auto f = sequential_impl(std::forward<Args>(args)...);
-                    return f(apply_func_or_module(a, x...));
+                [=](auto&& ... x) mutable {
+                    return sequential_impl(args...)(a->forward(x...));
                 };
         }
     }
@@ -91,7 +85,9 @@ namespace meta {
     }
 
     template <typename ... Args>
-    auto sequential(Args&& ... args) {
-        return lambda(detail::sequential_impl(std::forward<Args>(args)...));
+    auto sequential(Args ... args) {
+        auto ret = lambda(detail::sequential_impl(args...));
+        ret->template register_modules<0>(args...);
+        return ret;
     }
 }

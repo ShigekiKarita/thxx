@@ -53,7 +53,7 @@ TEST_CASE( "MultiHeadedAttention", "[net]" ) {
     for (auto& p : att->parameters()) {
         CHECK( p.grad().defined() );
     }
-    std::cout << att->attn[0][0] << std::endl;
+    // std::cout << att->attn[0][0] << std::endl;
 }
 
 
