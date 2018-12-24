@@ -2,8 +2,6 @@ language: cpp
 
 sudo: false
 
-env: # need to allow failures
-
 matrix:
   include:
     - os: linux
@@ -123,7 +121,11 @@ matrix:
         - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7"
         - THXX_INSTALL=install-latest
   allow_failures:
-  - env: THXX_INSTALL=install-latest
+    - env: MATRIX_EVAL="CC=gcc-7 && CXX=g++-7" THXX_INSTALL=install-latest
+    - env: MATRIX_EVAL="CC=gcc-8 && CXX=g++-8" THXX_INSTALL=install-latest
+    - env: MATRIX_EVAL="CC=clang-5 && CXX=clang++-5" THXX_INSTALL=install-latest
+    - env: MATRIX_EVAL="CC=clang-6 && CXX=clang++-6" THXX_INSTALL=install-latest
+    - env: MATRIX_EVAL="CC=clang-7 && CXX=clang++-7" THXX_INSTALL=install-latest
 
 
 before_install:
