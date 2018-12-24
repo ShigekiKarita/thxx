@@ -8,13 +8,13 @@
 - pytorch 1.0.0 (recommend `conda install pytorch-cpu=1.0.0`)
 
 ## CI status
-| compiler | status                                                                       |
-| -------- | ---------------------------------------------------------------------------- |
-| gcc-7    | ![gcc-7](https://travis-ci.org/ShigekiKarita/thxx.svg?branch=master&job=1)   |
-| gcc-8    | ![gcc-8](https://travis-ci.org/ShigekiKarita/thxx.svg?branch=master&job=2)   |
-| clang-5  | ![clang-5](https://travis-ci.org/ShigekiKarita/thxx.svg?branch=master&job=3) |
-| clang-6  | ![clang-6](https://travis-ci.org/ShigekiKarita/thxx.svg?branch=master&job=4) |
-| clang-7  | ![clang-7](https://travis-ci.org/ShigekiKarita/thxx.svg?branch=master&job=5) |
+| compiler | status                                                                                            |
+| -------- | ----------------------------------------------------------------------------                      |
+| gcc-7    | ![gcc-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/1)   |
+| gcc-8    | ![gcc-8](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/2)   |
+| clang-5  | ![clang-5](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/3) |
+| clang-6  | ![clang-6](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/4) |
+| clang-7  | ![clang-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/5) |
 
 
 
