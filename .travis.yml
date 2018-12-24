@@ -2,10 +2,6 @@ language: cpp
 
 sudo: false
 
-env:
-  matrix:
-    - THXX_INSTALL=install-conda
-    - THXX_INSTALL=install-latest INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include"  LIBPATH=$PWD/libtorch/lib USE_CUDA=false
 
 matrix:
   include:
@@ -18,7 +14,11 @@ matrix:
           packages:
             - g++-7
       env:
-        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        global:
+          - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        matrix:
+          - THXX_INSTALL=install-conda
+          - THXX_INSTALL=install-latest INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include"  LIBPATH=$PWD/libtorch/lib USE_CUDA=false
     # works on Precise and Trusty
     - os: linux
       addons:
@@ -28,7 +28,7 @@ matrix:
           packages:
             - g++-8
       env:
-        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
+        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8" THXX_INSTALL=install-conda
     # works on Trusty
     - os: linux
       addons:
@@ -40,7 +40,7 @@ matrix:
             - g++-8
             - clang-5.0
       env:
-        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0" THXX_INSTALL=install-conda
     # works on Trusty
     - os: linux
       addons:
@@ -52,7 +52,7 @@ matrix:
             - g++-8
             - clang-6.0
       env:
-        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
+        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0" THXX_INSTALL=install-conda
     # works on Trusty
     - os: linux
       addons:
@@ -64,7 +64,7 @@ matrix:
             - g++-8
             - clang-7
       env:
-        - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7"
+        - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7" THXX_INSTALL=install-conda
 
 
 before_install:
