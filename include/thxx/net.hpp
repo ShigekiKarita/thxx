@@ -416,6 +416,31 @@ namespace thxx {
             };
 
 
+            // TODO implement ignore_idx with weight option
+            class EmbedIDImpl : public torch::nn::Cloneable<EmbedIDImpl> {
+            public:
+                std::int64_t vocab;
+                std::int64_t feat;
+                torch::nn::Embedding embed = nullptr;
+
+                EmbedIDImpl(std::int64_t vocab, std::int64_t feat)
+                    : EmbedIDImpl(vocab, feat, 0) {}
+
+                EmbedIDImpl(std::int64_t vocab, std::int64_t feat, float)
+                    : vocab(vocab), feat(feat) {
+                    this->reset();
+                }
+
+                void reset() override {
+                    this->embed = register_module("embed", torch::nn::Embedding(vocab, feat));
+                }
+
+                auto forward(torch::Tensor x, torch::Tensor mask) {
+                    return std::make_tuple(this->embed->forward(x), mask);
+                }
+            };
+            TORCH_MODULE(EmbedID);
+
             class DecoderImpl : public torch::nn::Cloneable<DecoderImpl> {
             public:
                 // configurations
@@ -423,7 +448,7 @@ namespace thxx {
                 Config config;
 
                 // submodules
-                torch::nn::Embedding embed = nullptr;
+                EmbedID embed = nullptr;
                 PositionalEncoding pe = nullptr;
                 std::vector<DecoderLayer> layers;
                 LayerNorm output_norm = nullptr;
@@ -435,7 +460,7 @@ namespace thxx {
                 }
 
                 void reset() override {
-                    this->embed = register_module("embed", torch::nn::Embedding(this->odim, this->config.d_model));
+                    this->embed = register_module("embed", EmbedID(this->odim, this->config.d_model));
                     this->pe = register_module("pe", PositionalEncoding(this->config.d_model, this->config.dropout_rate));
                     this->output_norm = register_module("output_norm", LayerNorm(this->config.d_model));
                     this->output_layer = register_module("output_layer", torch::nn::Linear(this->config.d_model, this->odim));
@@ -447,16 +472,17 @@ namespace thxx {
 
                 auto forward(torch::Tensor tgt, torch::Tensor tgt_mask,
                              torch::Tensor memory, torch::Tensor memory_mask) {
-                    auto e = this->embed->forward(tgt);
+                    auto [e, mask] = this->embed->forward(tgt, tgt_mask);
                     auto x = this->pe->forward(e);
                     for (auto& l : this->layers) {
-                        std::tie(x, tgt_mask) = l->forward(x, tgt_mask, memory, memory_mask);
+                        std::tie(x, mask) = l->forward(x, mask, memory, memory_mask);
                     }
                     x = this->output_layer->forward(this->output_norm->forward(x));
-                    return std::make_tuple(x, tgt_mask);
+                    return std::make_tuple(x, mask);
                 }
             };
             TORCH_MODULE(Decoder);
+
         } // namespace transformer
 
         template <typename InputLayer>
