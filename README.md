@@ -1,6 +1,4 @@
-# libtorch C++ examples
-
-forked from https://github.com/goldsborough/examples/tree/cpp/cpp/mnist
+# thxx - libtorch C++ API extentions
 
 ## requirements
 
@@ -11,3 +9,6 @@ forked from https://github.com/goldsborough/examples/tree/cpp/cpp/mnist
 
 `$ cd mnist && make`
 
+## acknowledgement
+
+mnist example is forked from https://github.com/goldsborough/examples/tree/cpp/cpp/mnist

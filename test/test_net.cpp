@@ -1,7 +1,8 @@
-#include "testing.hpp"
-#include "net.hpp"
+#include <thxx/testing.hpp>
+#include <thxx/net.hpp>
 
-using namespace net;
+using namespace thxx;
+using namespace thxx::net;
 
 
 TEST_CASE( "pad_mask", "[net]" ) {

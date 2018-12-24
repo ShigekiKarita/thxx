@@ -1,7 +1,8 @@
-#include "catch.hpp"
-#include "dataset.hpp"
+#include <thxx/testing.hpp>
+#include <thxx/dataset.hpp>
 
-using namespace dataset;
+using namespace thxx;
+using namespace thxx::dataset;
 
 /// sample from catch2
 unsigned int Factorial( unsigned int number ) {

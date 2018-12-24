@@ -7,4 +7,5 @@
 !*.hpp
 !*.cpp
 !Makefile
+!LICENSE
 !.gitignore

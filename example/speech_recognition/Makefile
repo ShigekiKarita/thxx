@@ -19,29 +19,26 @@ else
 	TORCH_LIBS=-ltorch -lcaffe2 -lc10
 endif
 
+INCPATH += -I../../include
+
+.PHONY: main test
+
+main: main.out
+	./main.out
+
+main.out: main.cpp rapidjson
+	$(CXX) $(CXX_FLAGS) $< -o $@ $(INCPATH) -L$(LIBPATH) -Wl,-rpath,$(LIBPATH) -L$(CONDA_PREFIX)/lib -Wl,-rpath,$(CONDA_PREFIX)/lib $(TORCH_LIBS) $(KALDI_FLAGS)
+
 test: test.out
 	./test.out
 
-test.out: test_main.o test_dataset.o test_net.o test_meta.o
+test.out: test_main.o test_dataset.o
 	$(CXX) $(CXX_FLAGS) $^ -o $@  -L$(LIBPATH) -Wl,-rpath,$(LIBPATH) -L$(CONDA_PREFIX)/lib -Wl,-rpath,$(CONDA_PREFIX)/lib $(TORCH_LIBS) $(KALDI_FLAGS)
 
-test_%.o: test_%.cpp catch.hpp
+test_%.o: test_%.cpp
 	$(CXX) $(CXX_FLAGS) -c $< -I. $(INCPATH) -L$(LIBPATH) -Wl,-rpath,$(LIBPATH) -L$(CONDA_PREFIX)/lib -Wl,-rpath,$(CONDA_PREFIX)/lib $(TORCH_LIBS) $(KALDI_FLAGS)
-
-train: train.out
-	./train.out
-
-train.out: train.cpp rapidjson
-	$(CXX) $(CXX_FLAGS) train.cpp -o train.out $(INCPATH) -L$(LIBPATH) -Wl,-rpath,$(LIBPATH) -L$(CONDA_PREFIX)/lib -Wl,-rpath,$(CONDA_PREFIX)/lib $(TORCH_LIBS) $(KALDI_FLAGS)
-
-#	$(CXX) $(CXX_FLAGS)  $< $(INCPATH) -L$(LIBPATH) $(KALDI_FLAGS) -ltorch -lcaffe2 -lc10 -pthread -o $@
-
-# -D_GLIBCXX_USE_CXX11_ABI=0 
 
 rapidjson:
 	wget -O- https://github.com/Tencent/rapidjson/archive/v1.1.0.tar.gz | tar zxvf -
 	ln -s `pwd`/rapidjson-1.1.0/include/rapidjson rapidjson
-
-catch.hpp:
-	wget https://raw.githubusercontent.com/catchorg/Catch2/master/single_include/catch2/catch.hpp
 

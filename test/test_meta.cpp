@@ -1,7 +1,8 @@
-#include "meta.hpp"
-#include "testing.hpp"
+#include <thxx/meta.hpp>
+#include <thxx/testing.hpp>
 
-using namespace meta;
+using namespace thxx;
+using namespace thxx::meta;
 
 
 struct TwiceRight {
