@@ -1,6 +1,6 @@
 # INSTALL: conda install pytorch-cpu=1.0.0 -c pytorch
 
-CXX_FLAGS := -std=c++17 -g3 -O0 -pthread -D_GLIBCXX_USE_CXX11_ABI=0 -Wall -Wextra -Wno-unused-function -D_LIBCPP_DEBUG # -D_GLIBCXX_DEBUG
+CXX_FLAGS := $(CXXFLAGS) -std=c++17 -g3 -O0 -pthread -D_GLIBCXX_USE_CXX11_ABI=0 -Wall -Wextra -Wno-unused-function -D_LIBCPP_DEBUG # -D_GLIBCXX_DEBUG
 # -ftrapv
 
 INCPATH := $(shell python -c "import torch.utils.cpp_extension as C; print('-isystem' + str.join(' -I', C.include_paths()))")
