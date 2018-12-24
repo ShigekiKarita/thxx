@@ -629,7 +629,7 @@ namespace Catch{
 
 	template <typename T, typename... Rest>
 	inline constexpr auto is_unique<T, Rest...> = std::bool_constant<
-		(!std::is_same<T, Rest>::value && ...) && is_unique<Rest...>
+		(!std::is_same_v<T, Rest> && ...) && is_unique<Rest...>
 	>{};
 #else
 

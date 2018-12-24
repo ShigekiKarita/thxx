@@ -54,14 +54,12 @@ matrix:
         apt:
           sources:
             - ubuntu-toolchain-r-test
-            - llvm-toolchain-trusty
             - llvm-toolchain-trusty-7
           packages:
+            - g++-8
             - clang-7
-            - libc++-7-dev
-            - libc++abi-7-dev
       env:
-        - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7 && CXXFLAGS=-std=libc++"
+        - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7"
 
 before_install:
     - eval "${MATRIX_EVAL}"

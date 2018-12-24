@@ -99,31 +99,31 @@ TEST_CASE( "transformer", "[net]" ) {
     }
     {
         auto f = T::EncoderLayer(n_input, 3, 4, 0.1);
-        auto [h, hm] = f->forward(x, m);
+        auto [h, _hm] = f->forward(x, m);
         h.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
     {
         auto f = T::DecoderLayer(n_input, 3, 4, 0.1);
-        auto [p, pm] = f->forward(y, ym, x, m);
+        auto [p, _pm] = f->forward(y, ym, x, m);
         p.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
     {
         auto f = T::Conv2dSubsampling(n_input, 10, 0.1);
-        auto [h, hm] = f->forward(x, m);
+        auto [h, _hm] = f->forward(x, m);
         h.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
     {
         auto f = T::Encoder(n_input, conf);
-        auto [h, hm] = f->forward(x, m);
+        auto [h, _hm] = f->forward(x, m);
         h.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
     {
         auto f = T::Decoder(n_output, conf);
-        auto [p, pm] = f->forward(t, tm, x, m);
+        auto [p, _pm] = f->forward(t, tm, x, m);
         p.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
     }

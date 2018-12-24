@@ -76,7 +76,7 @@ namespace thxx {
             };
 
             static auto sequential_impl() {
-                return [](auto&& x) { return x; };
+                return [](auto&& x) { return std::move(x); };  // avoid copy
             }
 
             template <typename A, typename ... Args>

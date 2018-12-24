@@ -15,7 +15,7 @@ namespace thxx {
                 return (a == b).all().template item<std::uint8_t>() == 1;
             }
 
-            virtual std::string describe() const {
+            virtual std::string describe() const override {
                 std::ostringstream ss;
                 ss << "\nis not equal to\n" << a;
                 return ss.str();
@@ -39,7 +39,7 @@ namespace thxx {
                 return ret;
             }
 
-            virtual std::string describe() const {
+            virtual std::string describe() const override {
                 std::ostringstream ss;
                 ss << "should" << this->s << "have a grad";
                 return ss.str();
