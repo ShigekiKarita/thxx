@@ -20,7 +20,7 @@ namespace thxx {
 
     namespace net {
         /// convert lengths {1, 2} to mask {{1, 0}, {1, 1}}
-        at::Tensor pad_mask(at::IntList lengths) {
+        static at::Tensor pad_mask(at::IntList lengths) {
             auto maxlen = *std::max_element(lengths.begin(), lengths.end());
             auto bs = static_cast<std::int64_t>(lengths.size());
             auto ret = at::zeros({bs, maxlen}, at::kByte);
@@ -30,11 +30,11 @@ namespace thxx {
             return ret;
         }
 
-        at::Tensor subsequent_mask(std::int64_t size, at::DeviceType device = at::kCPU) {
+        static at::Tensor subsequent_mask(std::int64_t size, at::DeviceType device = at::kCPU) {
             return at::ones({size, size}, at::kByte).to(device).tril_();
         }
 
-        auto label_smoothing_kl_div(torch::Tensor pred, torch::Tensor target, float smoothing=0, std::int64_t padding_idx=-1) {
+        static auto label_smoothing_kl_div(torch::Tensor pred, torch::Tensor target, float smoothing=0, std::int64_t padding_idx=-1) {
             AT_ASSERT(0.0 <= smoothing);
             AT_ASSERT(smoothing <= 1.0);
             torch::Tensor true_dist, ignore_mask, n_valid;
@@ -173,7 +173,7 @@ namespace thxx {
             };
 
 
-            auto positionwise_feedforward(std::int64_t d_model, std::int64_t d_ff, float dropout_rate) {
+            static auto positionwise_feedforward(std::int64_t d_model, std::int64_t d_ff, float dropout_rate) {
                 return meta::sequential(
                     torch::nn::Linear(d_model, d_ff),
                     torch::nn::Dropout(dropout_rate),

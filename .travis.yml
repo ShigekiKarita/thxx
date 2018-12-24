@@ -61,21 +61,18 @@ matrix:
       env:
         - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7"
 
+env:
+  - THXX_INSTALL=install-conda
+  - THXX_INSTALL=install-latest INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include"  LIBPATH=$PWD/libtorch/lib USE_CUDA=false
+
 before_install:
     - eval "${MATRIX_EVAL}"
 
 install:
-  # install conda https://conda.io/docs/user-guide/tasks/use-conda-with-travis-ci.html
-  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-  - bash miniconda.sh -b -p $HOME/miniconda
-  - export PATH="$HOME/miniconda/bin:$PATH"
-  - source $HOME/miniconda/bin/activate
-  - echo $CONDA_PREFIX
-  - hash -r
-  - conda config --set always_yes yes --set changeps1 no
-  - conda update -q conda
-  - conda info -a
-  - conda install pytorch-cpu -c pytorch
+  - make $THXX_INSTALL
+  - if [[ $THXX_INSTALL == conda ]]; then
+      source $HOME/miniconda/bin/activate;
+    fi
   - $CXX -v
 
 script:
