@@ -4,6 +4,32 @@
 using namespace thxx;
 using namespace thxx::net;
 
+TEST_CASE( "accuracy", "[net]" ) {
+    // TODO support brace-closed initializer list
+    // auto pred = torch::tensor(
+    //     {
+    //         { {1.0, 0.0, 0.0}, {1.0, 0.0, 0.0} },
+    //         { {1.0, 0.0 ,0.0}, {0.0, 0.0, 0.0} }
+    //     }, at::kFloat);
+    auto pred = torch::tensor(
+        {
+            1.0, 0.0, 0.0,
+            1.0, 0.0, 0.0,
+
+            0.0, 1.0 ,0.0,
+            0.0, 0.0, 0.0
+        },
+        at::kFloat).view({2, 2, 3});
+    auto target = torch::tensor(
+        {
+            0, 1,
+
+            1, 2
+        }, at::kLong).view({2, 2});
+
+    auto acc = thxx::net::accuracy(pred, target, 2);
+    CHECK( acc == Approx(2.0 / 3) );
+}
 
 TEST_CASE( "pad_mask", "[net]" ) {
     std::vector<std::int64_t> ls = {1, 2, 3, 4};

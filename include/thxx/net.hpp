@@ -19,6 +19,19 @@
 namespace thxx {
 
     namespace net {
+
+        double accuracy(torch::Tensor output, torch::Tensor target, std::int64_t ignore_label) {
+            AT_ASSERT(target.dim() + 1 == output.dim());
+            for (std::int64_t i = 0; i < target.dim(); ++i) {
+                AT_ASSERT(target.size(i) == output.size(i));
+            }
+            auto pred = output.argmax(-1);
+            auto mask = target != ignore_label;
+            auto num = torch::sum(pred.masked_select(mask) == target.masked_select(mask));;
+            auto den = torch::sum(mask);
+            return num.template item<double>() / den.template item<double>();
+        }
+
         /// convert lengths {1, 2} to mask {{1, 0}, {1, 1}}
         static at::Tensor pad_mask(at::IntList lengths) {
             auto maxlen = *std::max_element(lengths.begin(), lengths.end());
