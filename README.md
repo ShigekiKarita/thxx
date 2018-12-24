@@ -72,6 +72,10 @@ see [test/test_meta.cpp](https://github.com/ShigekiKarita/thxx/blob/master/test/
   - PositionalEncoding
   - PositionwiseFeedforward
   - pad/masking functions
+- Normalization
+  - LayerNorm
+- Math (wip)
+  - copy C++ batched/complex linalg funcitons from https://github.com/ShigekiKarita/thxx-py
 - Loss
   - label smoothing KLDivLoss
 
