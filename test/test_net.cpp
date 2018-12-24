@@ -142,7 +142,7 @@ TEST_CASE( "transformer", "[net]" ) {
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
     {
-        auto f = T::Encoder(n_input, conf);
+        auto f = T::Encoder<T::Conv2dSubsampling>(n_input, conf);
         auto [h, _hm] = f->forward(x, m);
         h.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
@@ -153,7 +153,7 @@ TEST_CASE( "transformer", "[net]" ) {
         p.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
-    Transformer model(n_input, n_output, conf);
+    Transformer<T::Conv2dSubsampling> model(n_input, n_output, conf);
     auto loss = model.forward(x, xlen, t, ylen);
     loss.backward();
     CHECK_THAT( model, testing::HasGrad(true) );

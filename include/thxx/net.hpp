@@ -372,15 +372,17 @@ namespace thxx {
             };
             TORCH_MODULE(Conv2dSubsampling);
 
-
-            class EncoderImpl : public torch::nn::Cloneable<EncoderImpl> {
+            template <typename InputLayer>
+            class EncoderImpl : public torch::nn::Cloneable<EncoderImpl<InputLayer>> {
             public:
+                using torch::nn::Cloneable<EncoderImpl<InputLayer>>::register_module;
+
                 // configurations
                 std::int64_t idim;
                 Config config;
 
                 // submodules
-                Conv2dSubsampling input_layer = nullptr;
+                InputLayer input_layer = nullptr;
                 std::vector<EncoderLayer> layers;
                 LayerNorm norm = nullptr;
 
@@ -390,7 +392,7 @@ namespace thxx {
                 }
 
                 void reset() override {
-                    this->input_layer = register_module("input_layer", Conv2dSubsampling(this->idim, this->config.d_model, this->config.dropout_rate));
+                    this->input_layer = register_module("input_layer", InputLayer(this->idim, this->config.d_model, this->config.dropout_rate));
                     this->layers.reserve(this->config.elayers);
                     for (std::int64_t i = 0; i < this->config.elayers; ++i) {
                         this->layers.push_back(register_module("e" + std::to_string(i), EncoderLayer(this->config)));
@@ -406,7 +408,12 @@ namespace thxx {
                     return std::make_tuple(this->norm->forward(x), mask);
                 }
             };
-            TORCH_MODULE(Encoder);
+
+            template <typename InputLayer>
+            class Encoder : public torch::nn::ModuleHolder<EncoderImpl<InputLayer>> {
+            public:
+                using torch::nn::ModuleHolder<EncoderImpl<InputLayer>>::ModuleHolder;
+            };
 
 
             class DecoderImpl : public torch::nn::Cloneable<DecoderImpl> {
@@ -452,6 +459,7 @@ namespace thxx {
             TORCH_MODULE(Decoder);
         } // namespace transformer
 
+        template <typename InputLayer>
         class Transformer : public torch::nn::Module {
         public:
             // configurations
@@ -463,12 +471,12 @@ namespace thxx {
             std::int64_t ignore_index;
 
             // submodules
-            transformer::Encoder encoder = nullptr;
+            transformer::Encoder<InputLayer> encoder = nullptr;
             transformer::Decoder decoder = nullptr;
 
             Transformer(std::int64_t idim, std::int64_t odim, transformer::Config config)
                 : idim(idim), odim(odim), config(config), sos(odim-1), eos(odim-1), ignore_index(odim) {
-                this->encoder = register_module("encoder", transformer::Encoder(idim, config));
+                this->encoder = register_module("encoder", transformer::Encoder<InputLayer>(idim, config));
                 this->decoder = register_module("decoder", transformer::Decoder(odim + 1, config));
             }
 
