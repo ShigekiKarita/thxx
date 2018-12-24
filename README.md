@@ -1,5 +1,7 @@
 # thxx - libtorch C++ API extentions
 
+[![Build Status](https://travis-ci.org/ShigekiKarita/thxx.svg?branch=master)](https://travis-ci.org/ShigekiKarita/thxx)
+
 ## requirements
 
 - g++ 4.8 - 8
