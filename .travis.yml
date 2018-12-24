@@ -2,69 +2,115 @@ language: cpp
 
 sudo: false
 
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
 
 matrix:
   include:
-    # works on Precise and Trusty
     - os: linux
       addons:
         apt:
-          sources:
-            - ubuntu-toolchain-r-test
           packages:
             - g++-7
       env:
-        global:
-          - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
-        matrix:
-          - THXX_INSTALL=install-conda
-          - THXX_INSTALL=install-latest INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include"  LIBPATH=$PWD/libtorch/lib USE_CUDA=false
-    # works on Precise and Trusty
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        - THXX_INSTALL=install-conda
     - os: linux
       addons:
         apt:
-          sources:
-            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+      env:
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+        - THXX_INSTALL=install-latest
+
+    - os: linux
+      addons:
+        apt:
           packages:
             - g++-8
       env:
-        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8" THXX_INSTALL=install-conda
-    # works on Trusty
+        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
+        - THXX_INSTALL=install-conda
+    - os: linux
+      addons:
+        apt:
+          packages:
+            - g++-8
+      env:
+        - MATRIX_EVAL="CC=gcc-8 && CXX=g++-8"
+        - THXX_INSTALL=install-latest
+
     - os: linux
       addons:
         apt:
           sources:
-            - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-5.0
           packages:
             - g++-8
             - clang-5.0
       env:
-        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0" THXX_INSTALL=install-conda
-    # works on Trusty
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+        - THXX_INSTALL=install-conda
     - os: linux
       addons:
         apt:
           sources:
-            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-5.0
+          packages:
+            - g++-8
+            - clang-5.0
+      env:
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+        - THXX_INSTALL=install-latest
+
+    - os: linux
+      addons:
+        apt:
+          sources:
             - llvm-toolchain-trusty-6.0
           packages:
             - g++-8
             - clang-6.0
       env:
-        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0" THXX_INSTALL=install-conda
-    # works on Trusty
+        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
+        - THXX_INSTALL=install-conda
     - os: linux
       addons:
         apt:
           sources:
-            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-6.0
+          packages:
+            - g++-8
+            - clang-6.0
+      env:
+        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
+        - THXX_INSTALL=install-latest
+
+    - os: linux
+      addons:
+        apt:
+          sources:
             - llvm-toolchain-trusty-7
           packages:
             - g++-8
             - clang-7
       env:
-        - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7" THXX_INSTALL=install-conda
+        - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7"
+        - THXX_INSTALL=install-conda
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-7
+          packages:
+            - g++-8
+            - clang-7
+      env:
+        - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7"
+        - THXX_INSTALL=install-latest
 
 
 before_install:
@@ -74,6 +120,10 @@ install:
   - make $THXX_INSTALL
   - if [[ $THXX_INSTALL == conda ]]; then
       source $HOME/miniconda/bin/activate;
+    else
+      INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include";
+      LIBPATH=$PWD/libtorch/lib;
+      USE_CUDA=false;
     fi
   - $CXX -v
 
