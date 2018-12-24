@@ -2,6 +2,16 @@
 
 [![Build Status](https://travis-ci.org/ShigekiKarita/thxx.svg?branch=master)](https://travis-ci.org/ShigekiKarita/thxx)
 
+## CI status
+
+| compiler | conda package                                                                                     | latest zip                                                                                         |
+| -------- | ------------------------------------------------------------------------------------------------- | ----------                                                                                         |
+| gcc-7    | ![gcc-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/1)   | ![gcc-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/2)    |
+| gcc-8    | ![gcc-8](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/3)   | ![gcc-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/4)    |
+| clang-5  | ![clang-5](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/5) | ![clang-5](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/6)  |
+| clang-6  | ![clang-6](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/7) | ![clang-6](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/8)  |
+| clang-7  | ![clang-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/9) | ![clang-6](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/10) |
+
 ## requirements
 
 - gcc 7, 8 or clang 5, 6, 7
@@ -85,16 +95,6 @@ see [test/test_net.cpp](https://github.com/ShigekiKarita/thxx/blob/master/test/t
 
 - HDF5 (wip)
 - numpy (wip)
-
-
-## CI status
-| compiler | status                                                                                            |
-| -------- | ----------------------------------------------------------------------------                      |
-| gcc-7    | ![gcc-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/1)   |
-| gcc-8    | ![gcc-8](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/2)   |
-| clang-5  | ![clang-5](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/3) |
-| clang-6  | ![clang-6](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/4) |
-| clang-7  | ![clang-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/5) |
 
 
 ## acknowledgement
