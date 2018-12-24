@@ -48,6 +48,20 @@ matrix:
             - clang-6.0
       env:
         - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
+    # works on Trusty
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty
+            - llvm-toolchain-trusty-7
+          packages:
+            - clang-7
+            - libc++-7-dev
+            - libc++abi-7-dev
+      env:
+        - MATRIX_EVAL="CC=clang-7 && CXX=clang++-7"
 
 before_install:
     - eval "${MATRIX_EVAL}"
