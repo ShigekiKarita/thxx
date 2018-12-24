@@ -58,7 +58,7 @@ install:
   - conda update -q conda
   - conda info -a
   - conda install pytorch-cpu -c pytorch
-  - $(CXX) -v
+  - $CXX -v
 
 script:
   - make
