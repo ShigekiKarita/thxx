@@ -417,29 +417,31 @@ namespace thxx {
 
 
             // TODO implement ignore_idx with weight option
-            class EmbedIDImpl : public torch::nn::Cloneable<EmbedIDImpl> {
+            class PositonalEmbeddingImpl : public torch::nn::Cloneable<PositonalEmbeddingImpl> {
             public:
                 std::int64_t vocab;
                 std::int64_t feat;
+                float dropout_rate;
+                PositionalEncoding pe = nullptr;
                 torch::nn::Embedding embed = nullptr;
 
-                EmbedIDImpl(std::int64_t vocab, std::int64_t feat)
-                    : EmbedIDImpl(vocab, feat, 0) {}
-
-                EmbedIDImpl(std::int64_t vocab, std::int64_t feat, float)
-                    : vocab(vocab), feat(feat) {
+                PositonalEmbeddingImpl(std::int64_t vocab, std::int64_t feat, float dropout_rate)
+                    : vocab(vocab), feat(feat), dropout_rate(dropout_rate) {
                     this->reset();
                 }
 
                 void reset() override {
                     this->embed = register_module("embed", torch::nn::Embedding(vocab, feat));
+                    this->pe = register_module("pe", PositionalEncoding(feat, dropout_rate));
                 }
 
                 auto forward(torch::Tensor x, torch::Tensor mask) {
-                    return std::make_tuple(this->embed->forward(x), mask);
+                    auto e = this->embed->forward(x);
+                    e = this->pe->forward(e);
+                    return std::make_tuple(e, mask);
                 }
             };
-            TORCH_MODULE(EmbedID);
+            TORCH_MODULE(PositonalEmbedding);
 
             class DecoderImpl : public torch::nn::Cloneable<DecoderImpl> {
             public:
@@ -448,8 +450,7 @@ namespace thxx {
                 Config config;
 
                 // submodules
-                EmbedID embed = nullptr;
-                PositionalEncoding pe = nullptr;
+                PositonalEmbedding embed = nullptr;
                 std::vector<DecoderLayer> layers;
                 LayerNorm output_norm = nullptr;
                 torch::nn::Linear output_layer = nullptr;
@@ -460,8 +461,7 @@ namespace thxx {
                 }
 
                 void reset() override {
-                    this->embed = register_module("embed", EmbedID(this->odim, this->config.d_model));
-                    this->pe = register_module("pe", PositionalEncoding(this->config.d_model, this->config.dropout_rate));
+                    this->embed = register_module("embed", PositonalEmbedding(this->odim, this->config.d_model, this->config.dropout_rate));
                     this->output_norm = register_module("output_norm", LayerNorm(this->config.d_model));
                     this->output_layer = register_module("output_layer", torch::nn::Linear(this->config.d_model, this->odim));
                     this->layers.reserve(this->config.elayers);
@@ -472,8 +472,7 @@ namespace thxx {
 
                 auto forward(torch::Tensor tgt, torch::Tensor tgt_mask,
                              torch::Tensor memory, torch::Tensor memory_mask) {
-                    auto [e, mask] = this->embed->forward(tgt, tgt_mask);
-                    auto x = this->pe->forward(e);
+                    auto [x, mask] = this->embed->forward(tgt, tgt_mask);
                     for (auto& l : this->layers) {
                         std::tie(x, mask) = l->forward(x, mask, memory, memory_mask);
                     }

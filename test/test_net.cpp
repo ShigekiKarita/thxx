@@ -148,7 +148,7 @@ TEST_CASE( "transformer", "[net]" ) {
         CHECK_THAT( *f, testing::HasGrad(true) );
     }
     {
-        auto f = T::Encoder<T::EmbedID>(n_output, conf);
+        auto f = T::Encoder<T::PositonalEmbedding>(n_output, conf);
         auto [h, _hm] = f->forward(t, tm);
         h.sum().backward();
         CHECK_THAT( *f, testing::HasGrad(true) );
@@ -166,7 +166,7 @@ TEST_CASE( "transformer", "[net]" ) {
         CHECK_THAT( model, testing::HasGrad(true) );
     }
     {
-        Transformer<T::EmbedID> model(n_input, n_output, conf);
+        Transformer<T::PositonalEmbedding> model(n_input, n_output, conf);
         auto loss = model.forward(t, ylen, t, ylen);
         loss.backward();
         CHECK_THAT( model, testing::HasGrad(true) );
