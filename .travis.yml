@@ -131,7 +131,8 @@ matrix:
 before_install:
     - eval "${MATRIX_EVAL}"
 
-install:
+script:
+  - $CXX -v
   - if [[ $THXX_INSTALL == install-conda ]]; then
       wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
       bash miniconda.sh -b -p $HOME/miniconda;
@@ -142,14 +143,10 @@ install:
       conda update -q conda;
       conda info -a;
       conda install pytorch-cpu -c pytorch;
+      make;
     else
       wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-latest.zip;
       unzip libtorch-shared-with-deps-latest.zip;
-      INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include";
-      LIBPATH=$PWD/libtorch/lib;
-      USE_CUDA=false;
+      make INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include" LIBPATH=$PWD/libtorch/lib USE_CUDA=false;
     fi
-  - $CXX -v
 
-script:
-  - make
