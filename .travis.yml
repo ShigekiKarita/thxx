@@ -42,6 +42,9 @@ matrix:
             - llvm-toolchain-trusty-6.0
           packages:
             - clang-6.0
+            - libllvm6.0
+            - libclang-common-6.0-dev
+            - libclang1-6.0
       env:
         - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
 
@@ -53,6 +56,8 @@ install:
   - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
   - bash miniconda.sh -b -p $HOME/miniconda
   - export PATH="$HOME/miniconda/bin:$PATH"
+  - source $HOME/miniconda/bin/activate
+  - echo $CONDA_PREFIX
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
