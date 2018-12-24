@@ -161,13 +161,13 @@ TEST_CASE( "transformer", "[net]" ) {
     }
     {
         Transformer<T::Conv2dSubsampling> model(n_input, n_output, conf);
-        auto loss = model.forward(x, xlen, t, ylen);
+        auto [loss, acc] = model.forward(x, xlen, t, ylen);
         loss.backward();
         CHECK_THAT( model, testing::HasGrad(true) );
     }
     {
         Transformer<T::PositonalEmbedding> model(n_input, n_output, conf);
-        auto loss = model.forward(t, ylen, t, ylen);
+        auto [loss, acc] = model.forward(t, ylen, t, ylen);
         loss.backward();
         CHECK_THAT( model, testing::HasGrad(true) );
     }

@@ -528,7 +528,8 @@ namespace thxx {
                 auto target = tgt_out.view({-1});
                 auto loss = label_smoothing_kl_div(pred.view({target.size(0), -1}), target,
                                                    this->config.label_smoothing, this->ignore_index);
-                return loss;
+                auto acc = accuracy(pred, tgt_out, this->ignore_index);
+                return std::make_tuple(loss, acc);
             }
         };
     } // namespace net
