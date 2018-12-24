@@ -1,0 +1,64 @@
+language: cpp
+
+sudo: false
+
+matrix:
+  include:
+    # works on Precise and Trusty
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-7
+      env:
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+    # works on Precise and Trusty
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-8
+      env:
+        - MATRIX_EVAL="CC=gcc-7 && CXX=g++-7"
+    # works on Trusty
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-5.0
+          packages:
+            - clang-5.0
+      env:
+        - MATRIX_EVAL="CC=clang-5.0 && CXX=clang++-5.0"
+    # works on Trusty
+    - os: linux
+      addons:
+        apt:
+          sources:
+            - llvm-toolchain-trusty-6.0
+          packages:
+            - clang-6.0
+      env:
+        - MATRIX_EVAL="CC=clang-6.0 && CXX=clang++-6.0"
+
+before_install:
+    - eval "${MATRIX_EVAL}"
+
+install:
+  # install conda https://conda.io/docs/user-guide/tasks/use-conda-with-travis-ci.html
+  - wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
+  - bash miniconda.sh -b -p $HOME/miniconda
+  - export PATH="$HOME/miniconda/bin:$PATH"
+  - hash -r
+  - conda config --set always_yes yes --set changeps1 no
+  - conda update -q conda
+  - conda info -a
+  - conda install pytorch-cpu -c pytorch
+  - $(CXX) -v
+
+script:
+  - make
