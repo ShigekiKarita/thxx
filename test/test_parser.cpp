@@ -1,5 +1,5 @@
-#include <torch/torch.h>
 #include <thxx/parser.hpp>
+#include <iostream>
 
 using thxx::parser::ArgParser;
 
@@ -22,6 +22,6 @@ struct Opt {
 
 int main(int argc, char *argv[]) {
     Opt opt(ArgParser(argc, argv));
-    AT_ASSERT(opt.batch_size == 4);
+    // AT_ASSERT(opt.batch_size == 4);
     std::cout << opt.parser.to_json() << std::endl;
 }

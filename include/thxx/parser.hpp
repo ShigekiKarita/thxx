@@ -4,6 +4,7 @@
 #include <unordered_set>
 #include <unordered_map>
 
+#include <rapidjson/writer.h>
 #include <rapidjson/prettywriter.h>
 
 
@@ -134,12 +135,13 @@ namespace thxx::parser {
 
         template <typename T>
         void add(const std::string& key, T& value, bool required=false) {
-            AT_ASSERT(key.find("--") == 0);
+            if (key.find("--") != 0) {
+                throw ArgParserError("key should start with \"--\" but \"" + key + "\".");
+            }
             this->keys.insert(key);
             if (this->parsed_map.find(key) != this->parsed_map.end()) {
                 try {
                     parsed_map[key].type = assign(parsed_map[key].value, value);
-                    AT_ASSERT( parsed_map[key].type != TypeTag::Unknown );
                     return;
                 } catch (std::invalid_argument& e) {
                     throw ArgParserError(std::string(e.what()) + "\nthrown from key: " + key);
@@ -159,7 +161,6 @@ namespace thxx::parser {
             add(key, value, true);
         }
 
-
         /// throw if an invalid argument (key) are passed
         void check() {
             std::string invalid;
@@ -175,9 +176,9 @@ namespace thxx::parser {
         }
 
         // TODO from JSON
-        std::string to_json() {
+        std::string to_json() const {
             rapidjson::StringBuffer s;
-            rapidjson::PrettyWriter writer(s);
+            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(s);
             writer.StartObject();
             for (const auto& kv : this->parsed_map) {
                 writer.Key(kv.first.c_str());
