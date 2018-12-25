@@ -13,8 +13,8 @@ else
 export TORCH_LIBS=-ltorch -lcaffe2 -lc10
 endif
 
-INCPATH += -I$(PWD)/include -isystem$(PWD)/third_party
-export INCPATH
+export THXX_LOCAL_INCPATH := -I$(PWD)/include -isystem$(PWD)/third_party
+
 
 .PHONY: test clean install-conda install-latest third_party
 
