@@ -13,7 +13,7 @@ namespace thxx {
         AT_FORALL_SCALAR_TYPES(SCALAR_TYPE_OF)
 #undef SCALAR_TYPE_OF
 
-        // template <typename T>
-        // constexpr at::ScalarType scalar_typeof = ScalarTypeof<T>::value;
+        template <typename T>
+        constexpr at::ScalarType scalar_typeof = ScalarTypeof<T>::value;
     }
 }

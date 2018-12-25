@@ -13,18 +13,23 @@ else
 export TORCH_LIBS=-ltorch -lcaffe2 -lc10
 endif
 
+INCPATH += -I$(PWD)/include -isystem$(PWD)/third_party
+export INCPATH
 
-.PHONY: test clean install-conda install-latest
+.PHONY: test clean install-conda install-latest third_party
 
-test:
+test: third_party
 	$(MAKE) --directory test
 
-example-mnist:
+example-mnist: third_party
 	$(MAKE) --directory example/mnist
 
-example-copy:
+example-copy: third_party
 	$(MAKE) --directory example/copy
 
 clean:
 	find . -name "*.o" -exec rm -v {} \;
 	find . -name "*.out" -exec rm -v {} \;
+
+third_party:
+	$(MAKE) --directory third_party
