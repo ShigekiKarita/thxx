@@ -3,7 +3,15 @@ export CXX_FLAGS := $(CXXFLAGS) -std=c++17 -g3 -O0 -pthread -D_GLIBCXX_USE_CXX11
 
 export INCPATH := $(shell python -c "import torch.utils.cpp_extension as C; print('-isystem' + str.join(' -isystem', C.include_paths()))")
 
+ifeq ($(INCPATH),)
+export INCPATH := -isystem $(PWD)/third_party/libtorch/include -isystem $(PWD)/third_party/libtorch/include/torch/csrc/api/include
+endif
+
 export LIBPATH := $(shell python -c "import torch.utils.cpp_extension as C; print(C.include_paths()[0] + '/../')")
+
+ifeq ($(LIBPATH),)
+export LIBPATH := $(PWD)/third_party/libtorch/lib
+endif
 
 export USE_CUDA := $(shell python -c "import torch; print(torch.cuda.is_available())")
 

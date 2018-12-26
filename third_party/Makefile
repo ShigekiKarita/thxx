@@ -7,4 +7,6 @@ rapidjson:
 catch.hpp:
 	wget https://raw.githubusercontent.com/catchorg/Catch2/master/single_include/catch2/catch.hpp
 
-
+libtorch-shared-with-deps-latest.zip:
+	wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-latest.zip
+	unzip libtorch-shared-with-deps-latest.zip

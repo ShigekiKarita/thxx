@@ -16,11 +16,26 @@
 
 - gcc 7, 8 or clang 5, 6, 7
 - compiler option `-std=c++17`
-- pytorch 1.0.0 (recommend `conda install pytorch-cpu=1.0.0`)
+- libtorch 1.0.0 (recommend `conda install pytorch-cpu=1.0.0 -c pytorch`)
 
 ## how to run
 
-`$ cd mnist && make`
+- using conda (recommend)
+``` console
+$ conda install pytorch-cpu=1.0.0 -c pytorch
+$ make test
+$ make example-mnist
+```
+
+- using libtorch latest zip
+```console
+$ cd 
+$ make --directory ./third_party libtorch-shared-with-deps-latest.zip
+$ make test
+$ make example-mnist
+```
+
+for more details, see [.travis.yml](.travis.yml).
 
 ## features
 

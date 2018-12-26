@@ -147,6 +147,5 @@ script:
     else
       wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-latest.zip;
       unzip libtorch-shared-with-deps-latest.zip;
-      make INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include" LIBPATH=$PWD/libtorch/lib USE_CUDA=false;
+      make INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include" LIBPATH=$PWD/libtorch/lib
     fi
-
