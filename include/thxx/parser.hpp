@@ -1,4 +1,5 @@
 #pragma once
+#include <iostream>
 #include <vector>
 #include <exception>
 #include <unordered_set>
@@ -8,6 +9,9 @@
 #include <rapidjson/writer.h>
 #include <rapidjson/prettywriter.h>
 #endif
+
+// TODO has_include
+#include <cxxabi.h>
 
 /*
 namespace rapidjson {
@@ -28,6 +32,41 @@ namespace rapidjson {
 */
 
 namespace thxx::parser {
+
+    class Demangle {
+    public:
+        char* realname ;
+
+        Demangle( std::type_info const & ti ) {
+            int status = 0 ;
+            realname = abi::__cxa_demangle( ti.name(), 0, 0, &status ) ;
+        }
+
+        Demangle( Demangle const & ) = delete ;
+        Demangle & operator = ( Demangle const & ) = delete ;
+
+        ~Demangle() {
+            std::free( realname ) ;
+        }
+
+        operator char const*() const {
+            return realname ;
+        }
+    } ;
+
+    template <typename T, typename Alloc>
+    std::ostream& operator << (std::ostream& ostr, const std::vector<T, Alloc>& v) {
+        if (v.empty()) {
+            ostr << "{}";
+            return ostr;
+        }
+        ostr << "{" << v.front();
+        for (const auto& x : v) {
+            ostr << ", " << x;
+        }
+        ostr << "}";
+        return ostr;
+    }
 
     class ArgParserError : public std::invalid_argument {
     public:
@@ -80,6 +119,7 @@ namespace thxx::parser {
 
         std::string help = "--help";
         bool use_cmd_args = false;
+        bool help_wanted = false;
         std::unordered_set<std::string> keys;
         std::unordered_map<std::string, ArgValue> parsed_map;
 
@@ -96,17 +136,27 @@ namespace thxx::parser {
                     value.shrink_to_fit();
                 } else {
                     value.push_back(s);
-                    parsed_map[key] = {key, value};
                 }
+                parsed_map[key] = {key, value};
+            }
+            this->help_wanted = this->parsed_map.find(this->help) != this->parsed_map.end();
+            if (this->help_wanted) {
+                std::cout << argv[0] << ": help" << std::endl;
             }
         }
 
+        // only empty (i.e., just --option) and "true" can be true, only "false" can be false
         TypeTag assign(const Value& src, bool& dst) const {
-            const auto& v = src[0];
-            if (v != "true" && v != "false") {
-                throw ArgParserError("bool value should be \"true\" or \"false\" but passed: \"" + v + "\"");
+            if (src.size() == 0) {
+                dst = true;
             }
-            dst = v == "true";
+            else {
+                const auto& v = src[0];
+                if (v != "true" && v != "false") {
+                    throw ArgParserError("bool value should be \"true\" or \"false\" but passed: \"" + v + "\"");
+                }
+                dst = v == "true";
+            }
             return TypeTag::Bool;
         }
 
@@ -161,7 +211,18 @@ namespace thxx::parser {
         }
 
         template <typename T>
-        void add(const std::string& key, T& value, bool required=false) {
+        void add(const std::string& key, T& value, const std::string& doc="",  bool required=false) {
+            if (this->help_wanted) {
+                std::cout << std::boolalpha
+                          << "  " << key << (required ? " (required)" : "") << std::endl;
+                std::cout << "    type: " << Demangle(typeid(T))
+                          << ", default:" << value << std::endl;
+                if (!doc.empty()) {
+                    std::cout << "    " << doc << std::endl;
+                }
+                std::cout << std::endl;
+                return;
+            }
             if (key.substr(0, 2) != "--") {
                 throw ArgParserError("key should start with \"--\" but \"" + key + "\".");
             }
@@ -184,8 +245,8 @@ namespace thxx::parser {
         }
 
         template <typename T>
-        void required(const std::string& key, T& value) {
-            add(key, value, true);
+        void required(const std::string& key, T& value, const std::string& doc="") {
+            add(key, value, doc, true);
         }
 
         /// throw if an invalid argument (key) are passed

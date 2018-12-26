@@ -12,10 +12,13 @@ struct Opt {
     ArgParser parser;
 
     Opt(ArgParser p) : parser(p) {
-        parser.required("--batch_size", batch_size);
-        parser.add("--use_cuda", use_cuda);
-        parser.add("--units", units);
-        parser.add("--expdir", expdir);
+        parser.required("--batch_size", batch_size, "batch size for training");
+        parser.add("--use_cuda", use_cuda, "flag to enable cuda");
+        parser.add("--units", units, "number of units");
+        parser.add("--expdir", expdir, "experiment directory");
+        if (parser.help_wanted) {
+            std::exit(0);
+        }
         parser.check();
     }
 };
