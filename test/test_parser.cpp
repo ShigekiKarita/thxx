@@ -12,21 +12,11 @@ struct Opt : thxx::parser::ArgParser {
     std::string expdir = "";
     std::string json = "";
 
-    Opt() {
-        parse();
-    }
-
     Opt(int argc, const char* const argv[]) : ArgParser(argc, argv) {
         add("--json", json);
         if (!json.empty()) {
             from_json(json);
         }
-        else {
-            parse();
-        }
-    }
-
-    void parse() {
         required("--batch_size", batch_size);
         add("--use_cuda", use_cuda);
         add("--units", units);
@@ -47,11 +37,17 @@ TEST_CASE( "to_json", "[parser]" ) {
     CHECK( opt.units == decltype(opt.units){100, 200, 300} );
     CHECK( opt.use_cuda );
     CHECK( opt.to_json(false) == R"({"--use_cuda":true,"--json":"","--expdir":"","--batch_size":4,"--units":[100,200,300]})" );
-    std::cout << opt.to_json(false) << std::endl;
+    // std::cout << opt.to_json(false) << std::endl;
 }
 
 TEST_CASE( "from_json", "[parser]" ) {
-    Opt opt;
-    opt.from_json( R"({"--use_cuda":true,"--expdir":"","--batch_size":4,"--units":[100,200,300]})" );
-    std::cout << opt.to_json() << std::endl;
+    const char* argv[] = {
+        "prog.exe", "--json",
+        R"({"--batch_size":3,"--use_cuda":false,"--expdir":"/home","--units":[100,200]})"
+    };
+    Opt opt(asizeof(argv), argv);
+    CHECK( opt.batch_size == 3 );
+    CHECK( opt.units == decltype(opt.units){100, 200} );
+    CHECK( opt.use_cuda == false );
+    CHECK( opt.expdir == "/home" );
 }

@@ -2,7 +2,8 @@
 
 all: test_main.out test_parser_main.out
 	./test_main.out
-	./test_parser_main.out --batch_size 4 --use_cuda false --units 1 2 3 4
+	./test_parser_main.out --batch_size 3 --use_cuda false --expdir "/home" --units 100 200
+	./test_parser_main.out --json '{"--batch_size": 3, "--use_cuda": false, "--expdir": "/home", "--units": [100, 200]}'
 
 test_parser_main.out: test_parser_main.cpp
 	$(CXX) -std=c++11 $^ -o $@  $(INCPATH) $(THXX_LOCAL_INCPATH)

@@ -12,8 +12,11 @@
 #include <cxxabi.h>
 
 #if __has_include(<rapidjson/writer.h>)
+#include <rapidjson/document.h>
+#include <rapidjson/istreamwrapper.h>
 #include <rapidjson/writer.h>
 #include <rapidjson/prettywriter.h>
+#include <fstream>
 #if __cplusplus > 201703L
 // C++ 17 deduction guides
 namespace rapidjson {
@@ -128,6 +131,13 @@ namespace thxx::parser {
         std::unordered_set<std::string> keys;
         std::unordered_map<std::string, ArgValue> parsed_map;
 
+        void clear() {
+            this->use_cmd_args = false;
+            this->help_wanted = false;
+            this->keys.clear();
+            this->parsed_map.clear();
+        }
+
         ArgParser() : use_cmd_args(false) {}
 
         ArgParser(int argc, const char* const argv[]) : use_cmd_args(true) {
@@ -240,7 +250,7 @@ namespace thxx::parser {
         }
 
         template <typename T>
-        void add(const std::string& key, T& value, const std::string& doc="",  bool required=false) {
+        void add(const std::string& key, T& value, const std::string& doc="", bool required=false) {
             if (this->help_wanted) {
                 std::cout << std::boolalpha
                           << "  " << key << (required ? " (required)" : "") << std::endl;
@@ -293,9 +303,61 @@ namespace thxx::parser {
         }
 
 #if __has_include(<rapidjson/writer.h>)
-        // TODO from JSON
-        void from_json(std::string json) {
-            // if (json)
+        std::string value_to_string(const rapidjson::Value& v) {
+            using namespace rapidjson;
+            switch (v.GetType()) {
+                case kNumberType:
+                    return v.IsInt64()
+                        ? std::to_string(v.GetInt64())
+                        : std::to_string(v.GetDouble());
+                case kStringType:
+                    return v.GetString();
+                case kTrueType:
+                    return "true";
+                case kFalseType:
+                    return "false";
+                default:
+                    throw ArgParserError("array, null, and object are not expected here: " + std::to_string(v.GetType()));
+            }
+        }
+
+        void from_json(std::string json, bool clear=true) {
+            auto n = json.size();
+            rapidjson::Document doc;
+            // read from file
+            if (json.substr(n - 5, n) == ".json") {
+                std::ifstream file(json);
+                if (!file.is_open()) {
+                    throw ArgParserError("cannot open the file: " + json);
+                }
+                rapidjson::IStreamWrapper isw(file);
+                doc.ParseStream(isw);
+            }
+            // read from string
+            else {
+                doc.Parse(json.c_str());
+            }
+
+            // set values
+            if (clear) {
+                this->clear();
+            }
+            for (const auto& m : doc.GetObject()) {
+                auto key = m.name.GetString();
+                ArgValue av;
+                av.key = key;
+                const auto& v = m.value;
+                switch (v.GetType()) {
+                case rapidjson::kArrayType:
+                    for (const auto& m : v.GetArray()) {
+                        av.value.push_back(value_to_string(m));
+                    }
+                    break;
+                default:
+                    av.value.push_back(value_to_string(v));
+                }
+                this->parsed_map[key] = av;
+            }
         }
 
         std::string to_json(bool pretty=true, bool single_line_array=true) const {
