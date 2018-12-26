@@ -40,10 +40,21 @@ TEST_CASE( "to_json", "[parser]" ) {
     // std::cout << opt.to_json(false) << std::endl;
 }
 
-TEST_CASE( "from_json", "[parser]" ) {
+TEST_CASE( "from_json string", "[parser]" ) {
     const char* argv[] = {
         "prog.exe", "--json",
         R"({"--batch_size":3,"--use_cuda":false,"--expdir":"/home","--units":[100,200]})"
+    };
+    Opt opt(asizeof(argv), argv);
+    CHECK( opt.batch_size == 3 );
+    CHECK( opt.units == decltype(opt.units){100, 200} );
+    CHECK( opt.use_cuda == false );
+    CHECK( opt.expdir == "/home" );
+}
+
+TEST_CASE( "from_json file", "[parser]" ) {
+    const char* argv[] = {
+        "prog.exe", "--json", "test.json"
     };
     Opt opt(asizeof(argv), argv);
     CHECK( opt.batch_size == 3 );

@@ -1,0 +1,11 @@
+*
+!*/
+
+!*.md
+!*.py
+!*.h
+!*.hpp
+!*.cpp
+!Makefile
+!.gitignore
+!test.json

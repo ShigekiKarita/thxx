@@ -1,0 +1,1 @@
+{"--batch_size":3,"--use_cuda":false,"--expdir":"/home","--units":[100,200]}
