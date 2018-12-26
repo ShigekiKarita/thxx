@@ -55,10 +55,3 @@ TEST_CASE( "from_json", "[parser]" ) {
     opt.from_json( R"({"--use_cuda":true,"--expdir":"","--batch_size":4,"--units":[100,200,300]})" );
     std::cout << opt.to_json() << std::endl;
 }
-
-
-// int main(int argc, char *argv[]) {
-//     Opt opt(ArgParser(argc, argv));
-//     // AT_ASSERT(opt.batch_size == 4);
-//     std::cout << opt.to_json() << std::endl;
-// }

@@ -1,3 +1,6 @@
+/**
+   NOTE: only this header supports C++11
+ */
 #pragma once
 #include <iostream>
 #include <vector>
@@ -5,15 +8,14 @@
 #include <unordered_set>
 #include <unordered_map>
 
-#if __has_include(<rapidjson/writer.h>)
-#include <rapidjson/writer.h>
-#include <rapidjson/prettywriter.h>
-#endif
-
 // TODO has_include
 #include <cxxabi.h>
 
-/*
+#if __has_include(<rapidjson/writer.h>)
+#include <rapidjson/writer.h>
+#include <rapidjson/prettywriter.h>
+#if __cplusplus > 201703L
+// C++ 17 deduction guides
 namespace rapidjson {
     template<typename OutputStream>
     PrettyWriter(OutputStream&) -> PrettyWriter<OutputStream, UTF8<>, UTF8<>, CrtAllocator, kWriteDefaultFlags>;
@@ -29,7 +31,8 @@ namespace rapidjson {
     template<typename OutputStream, typename StackAllocator>
     Writer(OutputStream&, StackAllocator*, size_t) -> Writer<OutputStream, UTF8<>, UTF8<>, StackAllocator, kWriteDefaultFlags>;
 }  // namespace rapidjson
-*/
+#endif
+#endif
 
 namespace thxx::parser {
 
@@ -61,7 +64,7 @@ namespace thxx::parser {
             return ostr;
         }
         ostr << "{" << v.front();
-        for (const auto& x : v) {
+        for (const T& x : v) {
             ostr << ", " << x;
         }
         ostr << "}";
@@ -86,27 +89,29 @@ namespace thxx::parser {
         StringVector
     };
 
-    template <typename T>
-    constexpr bool is_vector = std::is_same_v<std::decay_t<T>,
-                                              std::vector< typename T::value_type,
-                                                           typename T::allocator_type > >;
+    // template <typename T>
+    // constexpr bool is_vector = std::is_same<typename std::decay<T>::type,
+    //                                         std::vector< typename T::value_type,
+    //                                                      typename T::allocator_type > >::value;
 
     template <typename T>
-    constexpr TypeTag vector_tag_of =
-        std::is_same_v<std::decay_t<T>, bool> ? TypeTag::Bool :
-        std::is_integral_v<T> ? TypeTag::IntVector :
-        std::is_floating_point_v<T> ? TypeTag::FloatVector :
-        TypeTag::StringVector;
+    struct vector_tag_of {
+        static constexpr TypeTag value =
+            std::is_same<typename std::decay<T>::type, bool>::value ? TypeTag::Bool :
+            std::is_integral<T>::value ? TypeTag::IntVector :
+            std::is_floating_point<T>::value ? TypeTag::FloatVector :
+            TypeTag::StringVector;
+    };
 
     template <typename T>
-    constexpr TypeTag type_tag_of =
-        // is_vector<T> ?  vector_tag_of<T> :
-        std::is_same_v<std::decay_t<T>, bool> ? TypeTag::Bool :
-        std::is_integral_v<T> ? TypeTag::Int :
-        std::is_floating_point_v<T> ? TypeTag::Float :
-        std::is_same_v<std::decay_t<T>, std::string> ? TypeTag::String :
-        TypeTag::Unknown;
-
+    struct type_tag_of  {
+        static constexpr TypeTag value = // is_vector<T> ?  vector_tag_of<T> :
+                std::is_same<typename std::decay<T>::type, bool>::value ? TypeTag::Bool :
+                std::is_integral<T>::value ? TypeTag::Int :
+                std::is_floating_point<T>::value ? TypeTag::Float :
+                std::is_same<typename std::decay<T>::type, std::string>::value ? TypeTag::String :
+                TypeTag::Unknown;
+    };
 
     struct ArgValue {
         std::string key;
@@ -137,7 +142,10 @@ namespace thxx::parser {
                 } else {
                     value.push_back(s);
                 }
-                parsed_map[key] = {key, value};
+                ArgValue v;
+                v.key = key;
+                v.value = value;
+                parsed_map[key] = v;
             }
             this->help_wanted = this->parsed_map.find(this->help) != this->parsed_map.end();
             if (this->help_wanted) {
@@ -151,7 +159,7 @@ namespace thxx::parser {
                 dst = true;
             }
             else {
-                const auto& v = src[0];
+                const std::string& v = src[0];
                 if (v != "true" && v != "false") {
                     throw ArgParserError("bool value should be \"true\" or \"false\" but passed: \"" + v + "\"");
                 }
@@ -166,13 +174,15 @@ namespace thxx::parser {
         }
 
         template <typename T>
-        std::enable_if_t<std::is_integral_v<T>, TypeTag> assign(const Value& src, T& dst) const {
+        typename std::enable_if<std::is_integral<T>::value, TypeTag>::type
+        assign(const Value& src, T& dst) const {
             dst = std::stoi(src[0]);
             return TypeTag::Int;
         }
 
         template <typename T>
-        std::enable_if_t<std::is_floating_point_v<T>, TypeTag> assign(const Value& src, T& dst) const {
+        typename std::enable_if<std::is_floating_point<T>::value, TypeTag>::type
+        assign(const Value& src, T& dst) const {
             dst = std::stod(src[0]);
             return TypeTag::Float;
         }
@@ -183,31 +193,50 @@ namespace thxx::parser {
             for (size_t i = 0; i < src.size(); ++i) {
                 assign({src[i]}, dst[i]);
             }
-            return vector_tag_of<T>;
+            return vector_tag_of<T>::value;
         }
 
         template <typename T>
         void set_default_value(const std::string& key, const T& v) {
-            this->parsed_map[key] = {key, {std::to_string(v)}, type_tag_of<T>};
+            Value val = {std::to_string(v)};
+            ArgValue a;
+            a.key = key;
+            a.value = val;
+            a.type = type_tag_of<T>::value;
+            this->parsed_map[key] = a;
         }
 
 
         void set_default_value(const std::string& key, const bool& v) {
-            this->parsed_map[key] = {key, {v ? "true" : "false"}, TypeTag::Bool};
+            Value val = {v ? "true" : "false"};
+            ArgValue a;
+            a.key = key;
+            a.value = val;
+            a.type = TypeTag::Bool;
+            this->parsed_map[key] = a;
         }
 
         void set_default_value(const std::string& key, const std::string& v) {
-            this->parsed_map[key] = {key, {v}, TypeTag::String};
+            Value val = {v};
+            ArgValue a;
+            a.key = key;
+            a.value = val;
+            a.type = TypeTag::String;
+            this->parsed_map[key] = a;
         }
 
         template <typename T>
         void set_default_value(const std::string& key, const std::vector<T>& v) {
             std::vector<std::string> val;
             val.reserve(v.size());
-            for (auto&& u: v) {
+            for (const T& u: v) {
                 val.push_back(std::to_string(u));
             }
-            this->parsed_map[key] = {key, val, vector_tag_of<T>};
+            ArgValue a;
+            a.key = key;
+            a.value = val;
+            a.type = vector_tag_of<T>::value;
+            this->parsed_map[key] = a;
         }
 
         template <typename T>
@@ -236,7 +265,7 @@ namespace thxx::parser {
                 }
             }
             else if (required && this->use_cmd_args) {
-                auto msg = "cmd arg: \"" + key + "\" is required but not found.";
+                std::string msg = "cmd arg: \"" + key + "\" is required but not found.";
                 throw ArgParserError(msg);
             }
             else {
@@ -271,28 +300,21 @@ namespace thxx::parser {
 
         std::string to_json(bool pretty=true, bool single_line_array=true) const {
             if (pretty) {
-                if (single_line_array) {
-                    return to_json_impl<true, true>();
-                }
-                return to_json_impl<true, false>();
+                rapidjson::PrettyWriter<rapidjson::StringBuffer> writer;
+                writer.SetFormatOptions(single_line_array
+                                        ? rapidjson::kFormatSingleLineArray
+                                        : rapidjson::kFormatDefault);
+                return to_json_impl(writer);
+            } else {
+                rapidjson::Writer<rapidjson::StringBuffer> writer;
+                return to_json_impl(writer);
             }
-            return to_json_impl<false, false>();
         }
 
-        template <bool pretty, bool single_line_array>
-        std::string to_json_impl() const {
-
+        template <typename Writer>
+        std::string to_json_impl(Writer& writer) const {
             rapidjson::StringBuffer s;
-            std::conditional_t<
-                pretty,
-                rapidjson::PrettyWriter<rapidjson::StringBuffer>,
-                rapidjson::Writer<rapidjson::StringBuffer>>
-                writer(s);
-
-            if constexpr (pretty) {
-                    writer.SetFormatOptions(single_line_array ? rapidjson::kFormatSingleLineArray : rapidjson::kFormatDefault);
-            }
-
+            writer.Reset(s);
             writer.StartObject();
             for (const auto& kv : this->parsed_map) {
                 writer.Key(kv.first.c_str());
