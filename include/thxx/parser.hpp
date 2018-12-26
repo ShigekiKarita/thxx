@@ -78,15 +78,19 @@ namespace thxx::parser {
     struct ArgParser {
         using Value = std::vector<std::string>;
 
+        std::string help = "--help";
+        bool use_cmd_args = false;
         std::unordered_set<std::string> keys;
         std::unordered_map<std::string, ArgValue> parsed_map;
 
-        ArgParser(int argc, char *argv[]) {
+        ArgParser() : use_cmd_args(false) {}
+
+        ArgParser(int argc, const char* const argv[]) : use_cmd_args(true) {
             std::string key;
             std::vector<std::string> value;
             for (int i = 1; i < argc; ++i) {
                 std::string s = argv[i];
-                if (s.find("--") == 0) {
+                if (s.substr(0, 2) == "--") {
                     key = s;
                     value.clear();
                     value.shrink_to_fit();
@@ -158,7 +162,7 @@ namespace thxx::parser {
 
         template <typename T>
         void add(const std::string& key, T& value, bool required=false) {
-            if (key.find("--") != 0) {
+            if (key.substr(0, 2) != "--") {
                 throw ArgParserError("key should start with \"--\" but \"" + key + "\".");
             }
             this->keys.insert(key);
@@ -170,7 +174,7 @@ namespace thxx::parser {
                     throw ArgParserError(std::string(e.what()) + "\nthrown from key: " + key);
                 }
             }
-            else if (required) {
+            else if (required && this->use_cmd_args) {
                 auto msg = "cmd arg: \"" + key + "\" is required but not found.";
                 throw ArgParserError(msg);
             }
@@ -201,7 +205,7 @@ namespace thxx::parser {
 #if __has_include(<rapidjson/writer.h>)
         // TODO from JSON
         void from_json(std::string json) {
-            
+            // if (json)
         }
 
         std::string to_json(bool pretty=true, bool single_line_array=true) const {
