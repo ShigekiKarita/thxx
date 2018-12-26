@@ -4,9 +4,28 @@
 #include <unordered_set>
 #include <unordered_map>
 
+#if __has_include(<rapidjson/writer.h>)
 #include <rapidjson/writer.h>
 #include <rapidjson/prettywriter.h>
+#endif
 
+/*
+namespace rapidjson {
+    template<typename OutputStream>
+    PrettyWriter(OutputStream&) -> PrettyWriter<OutputStream, UTF8<>, UTF8<>, CrtAllocator, kWriteDefaultFlags>;
+    template<typename OutputStream, typename StackAllocator>
+    PrettyWriter(OutputStream&, StackAllocator*) -> PrettyWriter<OutputStream, UTF8<>, UTF8<>, StackAllocator, kWriteDefaultFlags>;
+    template<typename OutputStream, typename StackAllocator>
+    PrettyWriter(OutputStream&, StackAllocator*, size_t) -> PrettyWriter<OutputStream, UTF8<>, UTF8<>, StackAllocator, kWriteDefaultFlags>;
+
+    template<typename OutputStream>
+    Writer(OutputStream&) -> Writer<OutputStream, UTF8<>, UTF8<>, CrtAllocator, kWriteDefaultFlags>;
+    template<typename OutputStream, typename StackAllocator>
+    Writer(OutputStream&, StackAllocator*) -> Writer<OutputStream, UTF8<>, UTF8<>, StackAllocator, kWriteDefaultFlags>;
+    template<typename OutputStream, typename StackAllocator>
+    Writer(OutputStream&, StackAllocator*, size_t) -> Writer<OutputStream, UTF8<>, UTF8<>, StackAllocator, kWriteDefaultFlags>;
+}  // namespace rapidjson
+*/
 
 namespace thxx::parser {
 
@@ -119,6 +138,10 @@ namespace thxx::parser {
         }
 
 
+        void set_default_value(const std::string& key, const bool& v) {
+            this->parsed_map[key] = {key, {v ? "true" : "false"}, TypeTag::Bool};
+        }
+
         void set_default_value(const std::string& key, const std::string& v) {
             this->parsed_map[key] = {key, {v}, TypeTag::String};
         }
@@ -175,10 +198,36 @@ namespace thxx::parser {
             throw ArgParserError(msg);
         }
 
+#if __has_include(<rapidjson/writer.h>)
         // TODO from JSON
-        std::string to_json() const {
+        void from_json(std::string json) {
+            
+        }
+
+        std::string to_json(bool pretty=true, bool single_line_array=true) const {
+            if (pretty) {
+                if (single_line_array) {
+                    return to_json_impl<true, true>();
+                }
+                return to_json_impl<true, false>();
+            }
+            return to_json_impl<false, false>();
+        }
+
+        template <bool pretty, bool single_line_array>
+        std::string to_json_impl() const {
+
             rapidjson::StringBuffer s;
-            rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(s);
+            std::conditional_t<
+                pretty,
+                rapidjson::PrettyWriter<rapidjson::StringBuffer>,
+                rapidjson::Writer<rapidjson::StringBuffer>>
+                writer(s);
+
+            if constexpr (pretty) {
+                    writer.SetFormatOptions(single_line_array ? rapidjson::kFormatSingleLineArray : rapidjson::kFormatDefault);
+            }
+
             writer.StartObject();
             for (const auto& kv : this->parsed_map) {
                 writer.Key(kv.first.c_str());
@@ -244,6 +293,7 @@ namespace thxx::parser {
             writer.EndObject();
             return s.GetString();
         }
+#endif // __has_include(<rapidjson/writer.h>)
     };
 
 }

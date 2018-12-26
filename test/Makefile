@@ -1,13 +1,13 @@
 .PHONY: all
 
-all: test.out test_parser.out
-	./test.out
-	./test_parser.out --batch_size 4 --use_cuda false --units 1 2 3 4
+all: test_main.out test_parser_main.out
+	./test_main.out
+	./test_parser_main.out --batch_size 4 --use_cuda false --units 1 2 3 4
 
-test_parser.out: test_parser.cpp
+test_parser_main.out: test_parser_main.cpp
 	$(CXX) $(CXX_FLAGS) $^ -o $@  -Wl,-rpath,$(LIBPATH) -Wl,-rpath,$(CONDA_PREFIX)/lib $(TORCH_LIBS) $(KALDI_FLAGS) -L$(CONDA_PREFIX)/lib -L$(LIBPATH) $(INCPATH) $(THXX_LOCAL_INCPATH)
 
-test.out: test_main.o test_net.o test_meta.o
+test_main.out: test_main.o test_net.o test_meta.o test_parser.o
 	$(CXX) $(CXX_FLAGS) $^ -o $@  -Wl,-rpath,$(LIBPATH) -Wl,-rpath,$(CONDA_PREFIX)/lib $(TORCH_LIBS) $(KALDI_FLAGS) -L$(CONDA_PREFIX)/lib -L$(LIBPATH)
 
 test_main.o: test_main.cpp
