@@ -4,71 +4,81 @@
 */
 #include <torch/torch.h>
 #include <thxx/net.hpp>
+#include <typed_argparser.hpp>
 
-constexpr std::int64_t idim = 11;
-constexpr std::int64_t odim = 11;
 
-auto gen_data(std::int64_t batch_size = 128) {
-    auto x = torch::randint(1, idim - 1, {batch_size, 10}).to(at::kLong);
-    std::vector<std::int64_t> xlen(batch_size, 10);
-    return std::make_tuple(x, xlen);
-}
+struct Config : thxx::net::transformer::Config {
+    // new config
+    std::int64_t dim = 10;
+    std::int64_t len = 10;
 
-#include <unordered_map>
+    Config() {
+        // update defaults
+        heads = 2;
+        d_model = 16;
+        d_ff = 16;
+        elayers = 1;
+        dlayers = 1;
+    }
 
-class ArgParser {
-public:
-    std::unordered_map<std::string, std::string> parsed_map;
+    // parse cmd args
+    void parse(int argc, const char* const argv[]) {
+        typed_argparser::ArgParser parser(argc, argv);
 
-    ArgParser(int argc, char *argv[]) {
-        for (int i = 1; i < argc; ++i) {
-            std::cout << "[" << argv[i] << "]" << std::endl;
+        std::string json;
+        parser.add("--json", json);
+        if (!json.empty()) {
+            parser.from_json(json);
         }
-    }
 
-    bool is_set(const std::string& key) {
-        return this->parsed_map.find(key) != this->parsed_map.end();
-    }
+        // data setting
+        parser.add("--data_dim", dim, "data dim");
+        parser.add("--data_len", len, "data length");
 
-    void required(const std::string& key, std::string& value) {
-        if (this->is_set(key)) {
-            value = this->parsed_map[key];
+        // model setting
+        parser.add("--d_model", d_model, "the number of the entire model dim.");
+        parser.add("--d_ff", d_ff, "the number of the feed-forward layer dim.");
+        parser.add("--heads", heads, "the number of heads in the attention layer.");
+        parser.add("--elayers", elayers, "the number of encoder layers.");
+        parser.add("--dlayers", dlayers, "the number of decoder layers.");
+        parser.add("--dropout_rate", dropout_rate, "dropout rate.");
+        parser.add("--label_smoothing", label_smoothing, "label smoothing penalty.");
+
+        // training setting
+        parser.add("--lr", lr, "learning rate.");
+        parser.add("--warmup_steps", warmup_steps, "warmup steps for lr scheduler.");
+        parser.add("--batch_size", batch_size, "minibatch size.");
+        parser.add("--max_len_in", max_len_in, "max length for input sequence.");
+        parser.add("--max_len_out", max_len_out, "max length for output sequence.");
+
+        if (parser.help_wanted) {
+            std::cout << parser.help_message() << std::endl;
+            std::exit(0);
         }
+
+        parser.check();
+
+        std::ofstream ofs("config.json");
+        ofs << parser.to_json();
     }
 
-    void required(const std::string& key, std::int64_t* value) {
-        if (this->is_set(key)) {
-            *value = std::stoi(this->parsed_map[key]);
-        }
-    }
-};
-
-struct Opt {
-    std::int64_t batch_size = 32;
-    bool use_cuda = true;
-
-    Opt(ArgParser parser) {
-        parser.required("--batch_size", &batch_size);
-        // optional("--use_cuda", use_cuda);
+    auto gen_data() {
+        auto x = torch::randint(1, dim - 1, {batch_size, len}).to(at::kLong);
+        std::vector<std::int64_t> xlen(batch_size, 10);
+        return std::make_tuple(x, xlen);
     }
 };
 
 int main(int argc, char *argv[]) {
-    // Opt opt(ArgParser(argc, argv));
-    // return;
-    thxx::net::transformer::Config config;
-    config.heads = 2;
-    config.d_model = 16;
-    config.d_ff = 16;
-    config.elayers = 1;
-    config.dlayers = 1;
+    Config config;
+    config.parse(argc, argv);
 
     using InputLayer = thxx::net::transformer::PositonalEmbedding;
-    thxx::net::Transformer<InputLayer> model(idim, odim, config);
+    thxx::net::Transformer<InputLayer> model(config.dim, config.dim, config);
     torch::optim::Adam optimizer(model.parameters(), 0.01);
 
     for (int i = 1; i <= 1000; ++i) {
-        auto [x, xlen] = gen_data();
+        auto [x, xlen] = config.gen_data();
         optimizer.zero_grad();
         auto [loss, acc] = model.forward(x, xlen, x, xlen);
         loss.backward();

@@ -21,7 +21,7 @@ else
 export TORCH_LIBS=-ltorch -lcaffe2 -lc10
 endif
 
-export THXX_LOCAL_INCPATH := -I$(PWD)/include -isystem$(PWD)/third_party
+export THXX_LOCAL_INCPATH := -I$(PWD)/include -isystem$(PWD)/third_party -isystem$(PWD)/third_party/cxx11-typed-argparser/include
 
 
 .PHONY: test clean install-conda install-latest third_party
