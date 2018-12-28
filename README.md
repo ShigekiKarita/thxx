@@ -8,6 +8,8 @@
 
 ## CI status
 
+https://travis-ci.org/ShigekiKarita/thxx
+
 | compiler | conda package                                                                                     | latest zip                                                                                         |
 | -------- | ------------------------------------------------------------------------------------------------- | ----------                                                                                         |
 | gcc-7    | ![gcc-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/1)   | ![gcc-7](https://travis-matrix-badges.herokuapp.com/repos/ShigekiKarita/thxx/branches/master/2)    |
@@ -123,5 +125,5 @@ mnist example is forked from https://github.com/goldsborough/examples/tree/cpp/c
 
 ## license
 
-BSL-1.0 (except for example/mnist and catch.hpp)
+BSL-1.0
 
