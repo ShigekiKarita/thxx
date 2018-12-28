@@ -143,7 +143,7 @@ script:
       conda update -q conda;
       conda info -a;
       conda install pytorch-cpu -c pytorch;
-      make;
+      make;n
     else
       wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-latest.zip;
       unzip libtorch-shared-with-deps-latest.zip;
@@ -152,7 +152,7 @@ script:
   - if [[ $THXX_INSTALL == install-conda ]] && [[ $CXX == g++-8 ]]; then
       sudo apt-get install doxygen graphviz;
       pip install breathe;
-      make docs;
+      make doc;
     fi
 
 
@@ -161,7 +161,7 @@ deploy:
   provider: pages
   skip_cleanup: true
   github_token: $GITHUB_TOKEN # Set in travis-ci.org dashboard
-  local_dir: docs
+  local_dir: doxgen/html
   on:
     branch: master
     condition: $THXX_INSTALL = install-conda && $CXX = g++-8

@@ -24,7 +24,7 @@ endif
 export THXX_LOCAL_INCPATH := -I$(PWD)/include -isystem$(PWD)/third_party -isystem$(PWD)/third_party/cxx11-typed-argparser/include
 
 
-.PHONY: test clean install-conda install-latest third_party
+.PHONY: test clean install-conda install-latest third_party doc
 
 test: third_party
 	$(MAKE) --directory test
@@ -42,7 +42,6 @@ clean:
 third_party:
 	$(MAKE) --directory third_party
 
-docs:
+doc:
 	$(MAKE) --directory doc
-	mv doc/sphinx/build/html docs
-	mv doc/doxgen/html docs/doxgen
+
