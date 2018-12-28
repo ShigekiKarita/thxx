@@ -1,6 +1,6 @@
 # thxx - libtorch C++ API extentions
 
-online doc https://shigekikarita.github.io/thxx/
+documentation https://shigekikarita.github.io/thxx/
 
 ## CI status
 
