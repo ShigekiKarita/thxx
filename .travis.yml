@@ -151,8 +151,10 @@ script:
     fi
   - if [[ $THXX_INSTALL == install-conda ]] && [[ $CXX == g++-8 ]]; then
       sudo apt-get install doxygen graphviz;
+      doxygen --version;
       pip install breathe;
       make doc;
+      touch doc/doxgen/html/.nojekyll;
     fi
 
 

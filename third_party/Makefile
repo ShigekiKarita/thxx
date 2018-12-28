@@ -1,3 +1,4 @@
+
 all: rapidjson catch.hpp
 
 rapidjson:
@@ -10,3 +11,11 @@ catch.hpp:
 libtorch-shared-with-deps-latest.zip:
 	wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-latest.zip
 	unzip libtorch-shared-with-deps-latest.zip
+
+Release_1_8_15.tar.gz:
+	wget https://github.com/doxygen/doxygen/archive/$@
+	tar -xf $@
+
+doxgen:
+	cd ./doxygen*/; mkdir -p build; cd build; cmake .. ; make DESTDIR=stage install
+
