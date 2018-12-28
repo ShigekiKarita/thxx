@@ -41,3 +41,8 @@ clean:
 
 third_party:
 	$(MAKE) --directory third_party
+
+docs:
+	$(MAKE) --directory doc
+	mv doc/sphinx/build/html docs
+	mv doc/doxgen/html docs/doxgen

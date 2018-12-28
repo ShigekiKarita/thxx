@@ -149,3 +149,19 @@ script:
       unzip libtorch-shared-with-deps-latest.zip;
       make INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include" LIBPATH=$PWD/libtorch/lib;
     fi
+  - if [[ $THXX_INSTALL == install-conda ]] && [[ $CXX = g++-8 ]]; then
+      sudo apt-get install doxygen
+      pip install breathe
+      make docs
+    fi
+
+
+deploy:
+  d: dmd
+  provider: pages
+  skip_cleanup: true
+  github_token: $GITHUB_TOKEN # Set in travis-ci.org dashboard
+  local_dir: docs
+  on:
+    branch: master
+    condition: $THXX_INSTALL = install-latest && $CXX = g++-8

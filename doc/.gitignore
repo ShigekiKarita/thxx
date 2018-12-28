@@ -1,0 +1,10 @@
+*
+
+doxgen
+
+!Makefile
+!.gitignore
+!Doxyfile
+!sphinx/
+!dark-theme.css
+
