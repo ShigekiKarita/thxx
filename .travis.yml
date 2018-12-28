@@ -151,8 +151,10 @@ script:
     fi
   - if [[ $THXX_INSTALL == install-conda ]] && [[ $CXX == g++-8 ]]; then
       sudo apt-get install -qq flex bison graphviz;
-      cd third_party;
-      make doxgen;
+      wget https://github.com/doxygen/doxygen/archive/Release_1_8_15.tar.gz:
+      tar -xf Release_1_8_15.tar.gz:
+      cd ./doxygen-Release_1_8_15; mkdir -p build; cd build; cmake .. ; make DESTDIR=stage install;
+      cd ../..;
       export PATH=`pwd`/doxygen-Release_1_8_15/build/stage/usr/local/bin/doxygen:$PATH;
       doxygen --version;
       pip install breathe;
