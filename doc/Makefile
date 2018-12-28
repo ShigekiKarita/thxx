@@ -1,4 +1,4 @@
-all:
+all: pytorch_sphinx_theme
 	doxygen
 	# pip install breathe
 	cd sphinx && make html
