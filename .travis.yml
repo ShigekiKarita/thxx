@@ -150,7 +150,10 @@ script:
       make INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include" LIBPATH=$PWD/libtorch/lib;
     fi
   - if [[ $THXX_INSTALL == install-conda ]] && [[ $CXX == g++-8 ]]; then
-      sudo apt-get install doxygen graphviz;
+      sudo apt-get install -qq flex bison graphviz;
+      cd third_party;
+      make doxgen;
+      export PATH=`pwd`/doxygen-Release_1_8_15/build/stage/usr/local/bin/doxygen:$PATH;
       doxygen --version;
       pip install breathe;
       make doc;

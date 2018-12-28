@@ -21,14 +21,14 @@
 ## how to run
 
 - using conda (recommend)
-``` console
+```
 $ conda install pytorch-cpu=1.0.0 -c pytorch
 $ make test
 $ make example-mnist
 ```
 
 - using libtorch latest zip
-```console
+```
 $ cd 
 $ make --directory ./third_party libtorch-shared-with-deps-latest.zip
 $ make test
@@ -42,8 +42,7 @@ for more details, see [.travis.yml](.travis.yml).
 ### functional meta modules
 
 - thxx::meta::Lambda<...> : torch::nn::ModuleHolder<...>
-
-``` c++
+```cpp
 auto x = torch::rand({2, 3, 4});
 
 // single input/output
@@ -67,7 +66,7 @@ Lambda f2 = lambda([](auto&& x1, auto&& x2) { return std::make_tuple(x1.relu(), 
 ```
 
 - thxx::meta::Seq<...> : torch::nn::ModuleHolder<...>
-``` c++
+```cpp
 auto x1 = torch::rand({2, 3, 4});
 
 // single input/output with Lambda
