@@ -1,6 +1,6 @@
 # thxx - libtorch C++ API extentions
 
-[![Build Status](https://travis-ci.org/ShigekiKarita/thxx.svg?branch=master)](https://travis-ci.org/ShigekiKarita/thxx)
+online doc https://shigekikarita.github.io/thxx/
 
 ## CI status
 
