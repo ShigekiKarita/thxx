@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-# atnn documentation build configuration file, created by
+# thxx documentation build configuration file, created by
 # sphinx-quickstart on Sun Nov 12 22:32:42 2017.
 #
 # This file is execfile()d with the current directory set to its
@@ -91,7 +91,9 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = "sphinxdoc" # 'alabaster'
+# html_theme = "sphinxdoc" # 'alabaster'
+html_theme = 'pytorch_sphinx_theme'
+html_theme_path = ["../../pytorch_sphinx_theme"]
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

@@ -155,7 +155,7 @@ script:
       tar -xf Release_1_8_15.tar.gz;
       cd ./doxygen-Release_1_8_15; mkdir -p build; cd build; cmake .. ; make DESTDIR=stage install;
       cd ../..;
-      export PATH=`pwd`/doxygen-Release_1_8_15/build/stage/usr/local/bin/doxygen:$PATH;
+      export PATH=`pwd`/doxygen-Release_1_8_15/build/stage/usr/local/bin:$PATH;
       doxygen --version;
       pip install breathe;
       make doc;
