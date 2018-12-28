@@ -33,7 +33,8 @@
 # ones.
 extensions = ['sphinx.ext.coverage',
               'sphinx.ext.mathjax',
-              "breathe"]
+              "breathe",
+              "m2r"]
 
 breathe_projects = {
     "thxx":"../../doxgen/xml",

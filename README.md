@@ -1,6 +1,10 @@
 # thxx - libtorch C++ API extentions
 
-documentation https://shigekikarita.github.io/thxx/
+## documentation
+
+- sphinx https://shigekikarita.github.io/thxx/sphinx/html
+- doxygen https://shigekikarita.github.io/thxx/
+
 
 ## CI status
 
@@ -42,6 +46,7 @@ for more details, see [.travis.yml](.travis.yml).
 ### functional meta modules
 
 - thxx::meta::Lambda<...> : torch::nn::ModuleHolder<...>
+
 ```cpp
 auto x = torch::rand({2, 3, 4});
 
@@ -66,6 +71,7 @@ Lambda f2 = lambda([](auto&& x1, auto&& x2) { return std::make_tuple(x1.relu(), 
 ```
 
 - thxx::meta::Seq<...> : torch::nn::ModuleHolder<...>
+
 ```cpp
 auto x1 = torch::rand({2, 3, 4});
 
