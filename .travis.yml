@@ -150,7 +150,7 @@ script:
       make INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include" LIBPATH=$PWD/libtorch/lib;
     fi
   - if [[ $THXX_INSTALL == install-conda ]] && [[ $CXX == g++-8 ]]; then
-      sudo apt-get install doxygen;
+      sudo apt-get install doxygen graphviz;
       pip install breathe;
       make docs;
     fi
