@@ -149,10 +149,10 @@ script:
       unzip libtorch-shared-with-deps-latest.zip;
       make INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include" LIBPATH=$PWD/libtorch/lib;
     fi
-  - if [[ $THXX_INSTALL == install-conda ]] && [[ $CXX = g++-8 ]]; then
-      sudo apt-get install doxygen
-      pip install breathe
-      make docs
+  - if [[ $THXX_INSTALL == install-conda ]] && [[ $CXX == g++-8 ]]; then
+      sudo apt-get install doxygen;
+      pip install breathe;
+      make docs;
     fi
 
 
