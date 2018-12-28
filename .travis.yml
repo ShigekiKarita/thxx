@@ -161,7 +161,7 @@ deploy:
   provider: pages
   skip_cleanup: true
   github_token: $GITHUB_TOKEN # Set in travis-ci.org dashboard
-  local_dir: doxgen/html
+  local_dir: doc/doxgen/html
   on:
     branch: master
     condition: $THXX_INSTALL = install-conda && $CXX = g++-8
