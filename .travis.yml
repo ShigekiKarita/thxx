@@ -158,6 +158,7 @@ script:
       export PATH=`pwd`/doxygen-Release_1_8_15/build/stage/usr/local/bin:$PATH;
       doxygen --version;
       pip install breathe;
+      git clone https://github.com/ShigekiKarita/thxx_sphinx_theme --depth 1 doc/pytorch_sphinx_theme
       make doc;
       touch doc/doxgen/html/.nojekyll;
     fi
