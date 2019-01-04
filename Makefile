@@ -35,6 +35,10 @@ example-mnist: third_party
 example-copy: third_party
 	$(MAKE) --directory example/copy
 
+example-speech-recognition: third_party
+	$(MAKE) --directory example/speech_recognition
+
+
 clean:
 	find . -name "*.o" -exec rm -v {} \;
 	find . -name "*.out" -exec rm -v {} \;

@@ -75,12 +75,12 @@ int main(int argc, char *argv[]) {
 
     using InputLayer = thxx::net::transformer::PositonalEmbedding;
     thxx::net::Transformer<InputLayer> model(config.dim, config.dim, config);
-    torch::optim::Adam optimizer(model.parameters(), 0.01);
+    torch::optim::Adam optimizer(model->parameters(), 0.01);
 
     for (int i = 1; i <= 1000; ++i) {
         auto [x, xlen] = config.gen_data();
         optimizer.zero_grad();
-        auto [loss, acc] = model.forward(x, xlen, x, xlen);
+        auto [loss, acc] = model->forward(x, xlen, x, xlen);
         loss.backward();
         optimizer.step();
         if (i % 100 == 0) {

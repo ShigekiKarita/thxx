@@ -1,5 +1,6 @@
 #include <torch/torch.h>
 
+#include <iostream>
 #include <cstddef>
 #include <iostream>
 #include <string>
@@ -7,130 +8,90 @@
 
 #include <kaldi-io.h>
 
+#include <thxx/net.hpp>
 #include <thxx/dataset.hpp>
+#include <typed_argparser.hpp>
 
+struct Config : thxx::net::transformer::Config
+{
+    // new config
+    std::int64_t dim = 10;
+    std::int64_t len = 10;
 
-struct Net : torch::nn::Module {
-    Net()
-        : conv1(torch::nn::Conv2dOptions(1, 10, /*kernel_size=*/5)),
-          conv2(torch::nn::Conv2dOptions(10, 20, /*kernel_size=*/5)),
-          fc1(320, 50),
-          fc2(50, 10) {
-        register_module("conv1", conv1);
-        register_module("conv2", conv2);
-        register_module("conv2_drop", conv2_drop);
-        register_module("fc1", fc1);
-        register_module("fc2", fc2);
+    Config()
+    {
+        // update defaults
+        heads = 2;
+        d_model = 256;
+        d_ff = 512;
+        elayers = 3;
+        dlayers = 3;
     }
 
-    torch::Tensor forward(torch::Tensor x) {
-        x = torch::relu(torch::max_pool2d(conv1->forward(x), 2));
-        x = torch::relu(
-            torch::max_pool2d(conv2_drop->forward(conv2->forward(x)), 2));
-        x = x.view({-1, 320});
-        x = torch::relu(fc1->forward(x));
-        x = torch::dropout(x, /*p=*/0.5, /*training=*/is_training());
-        x = fc2->forward(x);
-        return torch::log_softmax(x, /*dim=*/1);
-    }
+    // parse cmd args
+    void parse(int argc, const char *const argv[])
+    {
+        typed_argparser::ArgParser parser(argc, argv);
 
-    torch::nn::Conv2d conv1;
-    torch::nn::Conv2d conv2;
-    torch::nn::FeatureDropout conv2_drop;
-    torch::nn::Linear fc1;
-    torch::nn::Linear fc2;
-};
-
-struct Options {
-    std::string data_root{"data"};
-    int32_t batch_size{64};
-    int32_t epochs{10};
-    double lr{0.01};
-    double momentum{0.5};
-    bool no_cuda{false};
-    int32_t seed{1};
-    int32_t test_batch_size{1000};
-    int32_t log_interval{10};
-};
-
-template <typename DataLoader>
-void train(
-    int32_t epoch,
-    const Options& options,
-    Net& model,
-    torch::Device device,
-    DataLoader& data_loader,
-    torch::optim::SGD& optimizer,
-    size_t dataset_size) {
-    model.train();
-    size_t batch_idx = 0;
-    for (auto& batch : data_loader) {
-        auto data = batch.data.to(device), targets = batch.target.to(device);
-        optimizer.zero_grad();
-        auto output = model.forward(data);
-        auto loss = torch::nll_loss(output, targets);
-        loss.backward();
-        optimizer.step();
-
-        if (batch_idx++ % options.log_interval == 0) {
-            std::cout << "Train Epoch: " << epoch << " ["
-                      << batch_idx * batch.data.size(0) << "/" << dataset_size
-                      << "]\tLoss: " << loss.template item<float>() << std::endl;
+        std::string json;
+        parser.add("--json", json);
+        if (!json.empty())
+        {
+            parser.from_json(json);
         }
-    }
-}
 
-template <typename DataLoader>
-void test(
-    Net& model,
-    torch::Device device,
-    DataLoader& data_loader,
-    size_t dataset_size) {
-    torch::NoGradGuard no_grad;
-    model.eval();
-    double test_loss = 0;
-    int32_t correct = 0;
-    for (const auto& batch : data_loader) {
-        auto data = batch.data.to(device), targets = batch.target.to(device);
-        auto output = model.forward(data);
-        test_loss += torch::nll_loss(
-            output,
-            targets,
-            /*weight=*/{},
-            Reduction::Sum)
-            .template item<float>();
-        auto pred = output.argmax(1);
-        correct += pred.eq(targets).sum().template item<int64_t>();
-    }
+        // data setting
+        parser.add("--data_dim", dim, "data dim");
+        parser.add("--data_len", len, "data length");
 
-    test_loss /= dataset_size;
-    std::cout << "Test set: Average loss: " << test_loss
-              << ", Accuracy: " << correct << "/" << dataset_size << std::endl;
-}
+        // model setting
+        parser.add("--d_model", d_model, "the number of the entire model dim.");
+        parser.add("--d_ff", d_ff, "the number of the feed-forward layer dim.");
+        parser.add("--heads", heads, "the number of heads in the attention layer.");
+        parser.add("--elayers", elayers, "the number of encoder layers.");
+        parser.add("--dlayers", dlayers, "the number of decoder layers.");
+        parser.add("--dropout_rate", dropout_rate, "dropout rate.");
+        parser.add("--label_smoothing", label_smoothing, "label smoothing penalty.");
 
-struct Normalize : public torch::data::transforms::TensorTransform<> {
-    Normalize(float mean, float stddev)
-        : mean_(torch::tensor(mean)), stddev_(torch::tensor(stddev)) {}
-    torch::Tensor operator()(torch::Tensor input) {
-        return input.sub_(mean_).div_(stddev_);
+        // training setting
+        parser.add("--lr", lr, "learning rate.");
+        parser.add("--warmup_steps", warmup_steps, "warmup steps for lr scheduler.");
+        parser.add("--batch_size", batch_size, "minibatch size.");
+        parser.add("--max_len_in", max_len_in, "max length for input sequence.");
+        parser.add("--max_len_out", max_len_out, "max length for output sequence.");
+
+        if (parser.help_wanted)
+        {
+            std::cout << parser.help_message() << std::endl;
+            std::exit(0);
+        }
+
+        parser.check();
+
+        std::ofstream ofs("config.json");
+        ofs << parser.to_json();
     }
-    torch::Tensor mean_, stddev_;
 };
 
-int main(int argc, const char* argv[]) {
+int main(int argc, const char *argv[])
+{
+    Config config;
+    config.parse(argc, argv);
+
     torch::manual_seed(0);
 
-    Options options;
     torch::DeviceType device_type;
-    if (torch::cuda::is_available() && !options.no_cuda) {
+    if (torch::cuda::is_available()) // && !config.no_cuda)
+    {
         std::cout << "CUDA available! Training on GPU" << std::endl;
         device_type = torch::kCUDA;
-    } else {
+    }
+    else
+    {
         std::cout << "Training on CPU" << std::endl;
         device_type = torch::kCPU;
     }
     torch::Device device(device_type);
-
 
     auto train_json = thxx::dataset::read_json("espnet/egs/an4/asr1/dump/train_nodev/deltafalse/data.json");
     auto dev_json = thxx::dataset::read_json("espnet/egs/an4/asr1/dump/train_dev/deltafalse/data.json");
@@ -140,33 +101,73 @@ int main(int argc, const char* argv[]) {
     auto train_batch = thxx::dataset::make_batchset(train_json, train_scp);
     auto dev_batch = thxx::dataset::make_batchset(dev_json, dev_scp);
 
-    // Net model;
-    // model.to(device);
+    auto idim = train_batch[0][0].idim;
+    auto odim = train_batch[0][0].odim;
+    std::cout << "idim: " << idim << ", odim: " << odim << std::endl;
+    using InputLayer = thxx::net::transformer::Conv2dSubsampling;
+    thxx::net::Transformer<InputLayer> model(idim, odim, config);
+    torch::optim::Adam optimizer(model->parameters(), 0.01);
 
-    // auto train_dataset =
-    //     torch::data::datasets::MNIST(
-    //         options.data_root, torch::data::datasets::MNIST::Mode::kTrain)
-    //     .map(Normalize(0.1307, 0.3081))
-    //     .map(torch::data::transforms::Stack<>());
-    // const auto dataset_size = train_dataset.size().value();
+    using torch::autograd::make_variable;
 
-    // auto train_loader = torch::data::make_data_loader(
-    //     std::move(train_dataset), options.batch_size);
+    double best_acc = 0;
+    for (size_t epoch = 0; epoch < 200; ++epoch)
+    {
+        std::cout << "==== epoch " << epoch << " ====" << std::endl;
+        model->train();
+        double sum_train_acc = 0;
+        size_t sum_train_sample = 0;
+        for (auto batch : train_batch)
+        {
+            thxx::dataset::MiniBatch mb(batch);
+            optimizer.zero_grad();
+            auto [loss, acc] = model->forward(
+                make_variable(*mb.inputs),
+                mb.input_lengths,
+                make_variable(*mb.targets),
+                mb.target_lengths);
+            loss.backward();
+            optimizer.step();
+            std::cout << "[train] loss: " << loss.item<double>() << ", acc: " << acc << std::endl;
+            auto samples = mb.input_lengths[0];
+            sum_train_acc += acc * samples;
+            sum_train_sample += samples;
+        }
+        std::cout << "[train] average acc: " << sum_train_acc / sum_train_sample << std::endl;
 
-    // auto test_loader = torch::data::make_data_loader(
-    //     torch::data::datasets::MNIST(
-    //         options.data_root, torch::data::datasets::MNIST::Mode::kTest)
-    //     .map(Normalize(0.1307, 0.3081))
-    //     .map(torch::data::transforms::Stack<>()),
-    //     options.batch_size);
+        model->eval();
+        torch::NoGradGuard no_grad;
+        double sum_dev_acc = 0;
+        size_t sum_dev_sample = 0;
+        for (auto batch : dev_batch)
+        {
+            thxx::dataset::MiniBatch mb(batch);
 
-    // torch::optim::SGD optimizer(
-    //     model.parameters(),
-    //     torch::optim::SGDOptions(options.lr).momentum(options.momentum));
+            auto [loss, acc] = model->forward(
+                make_variable(*mb.inputs),
+                mb.input_lengths,
+                make_variable(*mb.targets),
+                mb.target_lengths);
+            auto samples = mb.input_lengths[0];
+            sum_dev_acc += acc * samples;
+            sum_dev_sample += samples;
+        }
+        double dev_acc = sum_dev_acc / sum_dev_sample;
+        std::cout << "[dev] average acc: " << dev_acc << std::endl;
 
-    // for (size_t epoch = 1; epoch <= options.epochs; ++epoch) {
-    //     train(
-    //         epoch, options, model, device, *train_loader, optimizer, dataset_size);
-    //     test(model, device, *test_loader, dataset_size);
-    // }
+        if (dev_acc > best_acc)
+        {
+            best_acc = dev_acc;
+            torch::save(model, "model.pt");
+            torch::save(optimizer, "optimizer.pt");
+            std::cout << "the best model is saved" << std::endl;
+        }
+        else
+        {
+            torch::load(model, "model.pt");
+            torch::load(optimizer, "optimizer.pt");
+            optimizer.options.learning_rate_ *= 0.5;
+            std::cout << "the best model is loaded. lr decayed to "  << optimizer.options.learning_rate_ << std::endl;
+        }
+    }
 }

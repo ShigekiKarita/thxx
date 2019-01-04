@@ -485,8 +485,10 @@ namespace thxx {
         } // namespace transformer
 
         template <typename InputLayer>
-        class Transformer : public torch::nn::Module {
+        class TransformerImpl : public torch::nn::Cloneable<TransformerImpl<InputLayer>> {
         public:
+            using torch::nn::Cloneable<TransformerImpl<InputLayer>>::register_module;
+
             // configurations
             std::int64_t idim;
             std::int64_t odim;
@@ -499,8 +501,12 @@ namespace thxx {
             transformer::Encoder<InputLayer> encoder = nullptr;
             transformer::Decoder decoder = nullptr;
 
-            Transformer(std::int64_t idim, std::int64_t odim, transformer::Config config)
+            TransformerImpl(std::int64_t idim, std::int64_t odim, transformer::Config config)
                 : idim(idim), odim(odim), config(config), sos(odim-1), eos(odim-1), ignore_index(odim) {
+                this->reset();
+            }
+
+            void reset() override {
                 this->encoder = register_module("encoder", transformer::Encoder<InputLayer>(idim, config));
                 this->decoder = register_module("decoder", transformer::Decoder(odim + 1, config));
             }
@@ -532,6 +538,14 @@ namespace thxx {
                 return std::make_tuple(loss, acc);
             }
         };
+
+        template <typename InputLayer>
+        class Transformer : public torch::nn::ModuleHolder<TransformerImpl<InputLayer>> {
+        public:
+            using torch::nn::ModuleHolder<TransformerImpl<InputLayer>>::ModuleHolder;
+        };
+
+
     } // namespace net
 
 } //namespace thxx
