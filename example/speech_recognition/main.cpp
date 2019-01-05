@@ -1,5 +1,7 @@
 #include <torch/torch.h>
 
+#include <algorithm>
+#include <random>
 #include <iostream>
 #include <cstddef>
 #include <iostream>
@@ -14,13 +16,12 @@
 
 struct Config : thxx::net::transformer::Config
 {
-    // new config
-    std::int64_t dim = 10;
-    std::int64_t len = 10;
+    std::mt19937::result_type seed;
 
     Config()
     {
         // update defaults
+        seed = 0;
         heads = 2;
         d_model = 256;
         d_ff = 512;
@@ -40,11 +41,8 @@ struct Config : thxx::net::transformer::Config
             parser.from_json(json);
         }
 
-        // data setting
-        parser.add("--data_dim", dim, "data dim");
-        parser.add("--data_len", len, "data length");
-
         // model setting
+        parser.add("--seed", seed, "random generator seed.");
         parser.add("--d_model", d_model, "the number of the entire model dim.");
         parser.add("--d_ff", d_ff, "the number of the feed-forward layer dim.");
         parser.add("--heads", heads, "the number of heads in the attention layer.");
@@ -78,7 +76,8 @@ int main(int argc, const char *argv[])
     Config config;
     config.parse(argc, argv);
 
-    torch::manual_seed(0);
+    torch::manual_seed(config.seed);
+    std::mt19937 engine(config.seed);
 
     torch::DeviceType device_type;
     if (torch::cuda::is_available()) // && !config.no_cuda)
@@ -117,6 +116,7 @@ int main(int argc, const char *argv[])
         model->train();
         double sum_train_acc = 0;
         size_t sum_train_sample = 0;
+        std::shuffle(train_batch.begin(), train_batch.end(), engine);
         for (auto batch : train_batch)
         {
             thxx::dataset::MiniBatch mb(batch);
