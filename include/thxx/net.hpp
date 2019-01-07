@@ -43,8 +43,8 @@ namespace thxx {
             return ret;
         }
 
-        static at::Tensor subsequent_mask(std::int64_t size, at::DeviceType device = at::kCPU) {
-            return at::ones({size, size}, at::kByte).to(device).tril_();
+        static at::Tensor subsequent_mask(std::int64_t size, torch::Device device = torch::kCPU) {
+            return at::ones({size, size}, torch::TensorOptions().dtype(at::kByte).device(device)).tril_();
         }
 
         static auto label_smoothing_kl_div(torch::Tensor pred, torch::Tensor target, float smoothing=0, std::int64_t padding_idx=-1) {
@@ -513,11 +513,11 @@ namespace thxx {
 
             auto forward(torch::Tensor src, at::IntList src_length,
                          torch::Tensor tgt, at::IntList tgt_length) {
-                auto src_mask = pad_mask(src_length).unsqueeze(-2);
+                auto src_mask = pad_mask(src_length).unsqueeze(-2).to(src.device());
                 auto [mem, mem_mask] = this->encoder->forward(src, src_mask);
 
-                auto tgt_mask = pad_mask(tgt_length).unsqueeze(-2);
-                tgt_mask = tgt_mask.__and__(subsequent_mask(tgt_mask.size(-1)).unsqueeze(0));
+                auto tgt_mask = pad_mask(tgt_length).unsqueeze(-2).to(tgt.device());
+                tgt_mask = tgt_mask.__and__(subsequent_mask(tgt_mask.size(-1), tgt_mask.device()).unsqueeze(0));
                 auto tgt_in = tgt.clone().fill_(this->ignore_index);
                 auto tgt_out = tgt.clone().fill_(this->ignore_index); // NOTE fill eos?
                 for (size_t i = 0; i < tgt_length.size(); ++i) {

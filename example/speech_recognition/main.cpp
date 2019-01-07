@@ -11,23 +11,20 @@
 #include <kaldi-io.h>
 
 #include <thxx/net.hpp>
+#include <thxx/chrono.hpp>
 #include <thxx/dataset.hpp>
 #include <typed_argparser.hpp>
 
 struct Config : thxx::net::transformer::Config
 {
-    std::mt19937::result_type seed;
+    // new config
+    std::mt19937::result_type seed = 0;
+    bool use_cuda = false;
 
-    Config()
-    {
-        // update defaults
-        seed = 0;
-        heads = 2;
-        d_model = 256;
-        d_ff = 512;
-        elayers = 3;
-        dlayers = 3;
-    }
+    std::string train_json = "espnet/egs/an4/asr1/dump/train_nodev/deltafalse/data.json";
+    std::string dev_json = "espnet/egs/an4/asr1/dump/train_dev/deltafalse/data.json";
+    std::string train_scp = "espnet/egs/an4/asr1/dump/train_nodev/deltafalse/feats.scp";
+    std::string dev_scp = "espnet/egs/an4/asr1/dump/train_dev/deltafalse/feats.scp";
 
     // parse cmd args
     void parse(int argc, const char *const argv[])
@@ -41,6 +38,12 @@ struct Config : thxx::net::transformer::Config
             parser.from_json(json);
         }
 
+        // data setting
+        parser.add("--train_json", train_json, "train set json for meta data.");
+        parser.add("--dev_json", dev_json, "dev set json for meta data.");
+        parser.add("--train_scp", train_scp, "train set scp for speech data.");
+        parser.add("--dev_scp", dev_scp, "dev set scp for speech data.");
+
         // model setting
         parser.add("--seed", seed, "random generator seed.");
         parser.add("--d_model", d_model, "the number of the entire model dim.");
@@ -52,6 +55,7 @@ struct Config : thxx::net::transformer::Config
         parser.add("--label_smoothing", label_smoothing, "label smoothing penalty.");
 
         // training setting
+        parser.add("--use_cuda", use_cuda, "use cuda for training.");
         parser.add("--lr", lr, "learning rate.");
         parser.add("--warmup_steps", warmup_steps, "warmup steps for lr scheduler.");
         parser.add("--batch_size", batch_size, "minibatch size.");
@@ -92,19 +96,20 @@ int main(int argc, const char *argv[])
     }
     torch::Device device(device_type);
 
-    auto train_json = thxx::dataset::read_json("espnet/egs/an4/asr1/dump/train_nodev/deltafalse/data.json");
-    auto dev_json = thxx::dataset::read_json("espnet/egs/an4/asr1/dump/train_dev/deltafalse/data.json");
-    auto train_scp = thxx::dataset::open_scp("espnet/egs/an4/asr1/dump/train_nodev/deltafalse/feats.scp");
-    auto dev_scp = thxx::dataset::open_scp("espnet/egs/an4/asr1/dump/train_dev/deltafalse/feats.scp");
+    auto train_json = thxx::dataset::read_json(config.train_json);
+    auto dev_json = thxx::dataset::read_json(config.dev_json);
+    auto train_scp = thxx::dataset::open_scp(config.train_scp);
+    auto dev_scp = thxx::dataset::open_scp(config.dev_scp);
 
-    auto train_batch = thxx::dataset::make_batchset(train_json, train_scp);
-    auto dev_batch = thxx::dataset::make_batchset(dev_json, dev_scp);
+    auto train_batch = thxx::dataset::make_batchset(train_json, train_scp, config.batch_size, config.max_len_in, config.max_len_out);
+    auto dev_batch = thxx::dataset::make_batchset(dev_json, dev_scp, config.batch_size, config.max_len_in, config.max_len_out);
 
     auto idim = train_batch[0][0].idim;
     auto odim = train_batch[0][0].odim;
     std::cout << "idim: " << idim << ", odim: " << odim << std::endl;
     using InputLayer = thxx::net::transformer::Conv2dSubsampling;
     thxx::net::Transformer<InputLayer> model(idim, odim, config);
+    model->to(device);
     torch::optim::Adam optimizer(model->parameters(), 0.01);
 
     using torch::autograd::make_variable;
@@ -113,25 +118,35 @@ int main(int argc, const char *argv[])
     for (size_t epoch = 0; epoch < 200; ++epoch)
     {
         std::cout << "==== epoch " << epoch << " ====" << std::endl;
+
+        std::shuffle(train_batch.begin(), train_batch.end(), engine);
         model->train();
+
         double sum_train_acc = 0;
         size_t sum_train_sample = 0;
-        std::shuffle(train_batch.begin(), train_batch.end(), engine);
+        size_t n_iter = 0;
+        thxx::chrono::StopWatch sw;
         for (auto batch : train_batch)
         {
             thxx::dataset::MiniBatch mb(batch);
             optimizer.zero_grad();
             auto [loss, acc] = model->forward(
-                make_variable(*mb.inputs),
+                make_variable(*mb.inputs).to(device),
                 mb.input_lengths,
-                make_variable(*mb.targets),
+                make_variable(*mb.targets).to(device),
                 mb.target_lengths);
             loss.backward();
             optimizer.step();
-            std::cout << "[train] loss: " << loss.item<double>() << ", acc: " << acc << std::endl;
+
             auto samples = mb.input_lengths[0];
             sum_train_acc += acc * samples;
             sum_train_sample += samples;
+            ++n_iter;
+            std::cout << "[train epoch: " << epoch << ", iter: " << n_iter << "/" << train_batch.size() <<  "]"
+                      << " loss: " << loss.item<double>()
+                      << ", acc: " << acc
+                      << ", elapsed: " << sw.elapsed()
+                      << ", iter/sec: " << (static_cast<double>(n_iter) / sw.elapsed()) << std::endl;
         }
         std::cout << "[train] average acc: " << sum_train_acc / sum_train_sample << std::endl;
 
@@ -144,9 +159,9 @@ int main(int argc, const char *argv[])
             thxx::dataset::MiniBatch mb(batch);
 
             auto [loss, acc] = model->forward(
-                make_variable(*mb.inputs),
+                make_variable(*mb.inputs).to(device),
                 mb.input_lengths,
-                make_variable(*mb.targets),
+                make_variable(*mb.targets).to(device),
                 mb.target_lengths);
             auto samples = mb.input_lengths[0];
             sum_dev_acc += acc * samples;
@@ -164,8 +179,8 @@ int main(int argc, const char *argv[])
         }
         else
         {
-            torch::load(model, "model.pt");
-            torch::load(optimizer, "optimizer.pt");
+            // torch::load(model, "model.pt");
+            // torch::load(optimizer, "optimizer.pt");
             optimizer.options.learning_rate_ *= 0.5;
             std::cout << "the best model is loaded. lr decayed to "  << optimizer.options.learning_rate_ << std::endl;
         }

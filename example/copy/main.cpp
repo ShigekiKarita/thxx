@@ -11,6 +11,7 @@ struct Config : thxx::net::transformer::Config {
     // new config
     std::int64_t dim = 10;
     std::int64_t len = 10;
+    bool use_cuda = false;
 
     Config() {
         // update defaults
@@ -45,6 +46,7 @@ struct Config : thxx::net::transformer::Config {
         parser.add("--label_smoothing", label_smoothing, "label smoothing penalty.");
 
         // training setting
+        parser.add("--use_cuda", use_cuda, "use CUDA for training.");
         parser.add("--lr", lr, "learning rate.");
         parser.add("--warmup_steps", warmup_steps, "warmup steps for lr scheduler.");
         parser.add("--batch_size", batch_size, "minibatch size.");
@@ -73,13 +75,28 @@ int main(int argc, char *argv[]) {
     Config config;
     config.parse(argc, argv);
 
+    torch::DeviceType device_type;
+    if (torch::cuda::is_available()) // && config.use_cuda)
+    {
+        std::cout << "CUDA available! Training on GPU" << std::endl;
+        device_type = torch::kCUDA;
+    }
+    else
+    {
+        std::cout << "Training on CPU" << std::endl;
+        device_type = torch::kCPU;
+    }
+    torch::Device device(device_type);
+
     using InputLayer = thxx::net::transformer::PositonalEmbedding;
     thxx::net::Transformer<InputLayer> model(config.dim, config.dim, config);
+    model->to(device);
     torch::optim::Adam optimizer(model->parameters(), 0.01);
 
     for (int i = 1; i <= 1000; ++i) {
-        auto [x, xlen] = config.gen_data();
+        auto [_x, xlen] = config.gen_data();
         optimizer.zero_grad();
+        auto x = _x.to(device);
         auto [loss, acc] = model->forward(x, xlen, x, xlen);
         loss.backward();
         optimizer.step();
