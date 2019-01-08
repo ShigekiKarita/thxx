@@ -133,39 +133,45 @@ before_install:
 
 script:
   - $CXX -v
-  - if [[ $THXX_INSTALL == install-conda ]]; then
-      echo install conda;
-      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh;
-      bash miniconda.sh -b -p $HOME/miniconda;
-      source $HOME/miniconda/bin/activate;
-      echo $CONDA_PREFIX;
-      hash -r;
-      conda config --set always_yes yes --set changeps1 no;
-      conda update -q conda;
-      conda info -a;
-      conda install pytorch-cpu -c pytorch;
-      make;
-    else
-      echo install latest;
-      wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-latest.zip;
-      unzip libtorch-shared-with-deps-latest.zip;
-      make INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include" LIBPATH=$PWD/libtorch/lib;
+  - |
+    if [ "$THXX_INSTALL" == "install-conda" ]; then
+      echo install conda
+      wget https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh -O miniconda.sh
+      bash miniconda.sh -b -p $HOME/miniconda
+      source $HOME/miniconda/bin/activate
+      echo $CONDA_PREFIX
+      hash -r
+      conda config --set always_yes yes --set changeps1 no
+      conda update -q conda
+      conda info -a
+      conda install pytorch-cpu -c pytorch
+      make
+      if [ "$CXX" == "g++-8" ]; then
+        echo build doc
+        sudo apt-get install -qq flex bison graphviz
+        wget https://github.com/doxygen/doxygen/archive/Release_1_8_15.tar.gz
+        tar -xf Release_1_8_15.tar.gz
+        cd ./doxygen-Release_1_8_15
+        mkdir -p build
+        cd build
+        cmake ..
+        make DESTDIR=stage install
+        cd ../..
+        export PATH=`pwd`/doxygen-Release_1_8_15/build/stage/usr/local/bin:$PATH
+        doxygen --version
+        pip install breathe m2r
+        git clone https://github.com/ShigekiKarita/thxx_sphinx_theme --depth 1 doc/pytorch_sphinx_theme
+        make doc
+        touch doc/doxgen/html/.nojekyll
+      fi
     fi
-  - if [[ $THXX_INSTALL == install-conda ]] && [[ $CXX == g++-8 ]]; then
-      echo build doc;
-      sudo apt-get install -qq flex bison graphviz;
-      wget https://github.com/doxygen/doxygen/archive/Release_1_8_15.tar.gz;
-      tar -xf Release_1_8_15.tar.gz;
-      cd ./doxygen-Release_1_8_15; mkdir -p build; cd build; cmake .. ; make DESTDIR=stage install;
-      cd ../..;
-      export PATH=`pwd`/doxygen-Release_1_8_15/build/stage/usr/local/bin:$PATH;
-      doxygen --version;
-      pip install breathe m2r;
-      git clone https://github.com/ShigekiKarita/thxx_sphinx_theme --depth 1 doc/pytorch_sphinx_theme;
-      make doc;
-      touch doc/doxgen/html/.nojekyll;
+    if [ "$THXX_INSTALL" == "install-latest" ]; then
+      echo install latest
+      wget https://download.pytorch.org/libtorch/cpu/libtorch-shared-with-deps-latest.zip
+      unzip libtorch-shared-with-deps-latest.zip
+      make INCPATH="-isystem $PWD/libtorch/include -isystem $PWD/libtorch/include/torch/csrc/api/include" LIBPATH=$PWD/libtorch/lib
     fi
-
+  
 
 deploy:
   d: dmd
