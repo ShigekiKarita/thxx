@@ -12,6 +12,7 @@
 
 #include <thxx/net.hpp>
 #include <thxx/chrono.hpp>
+#include <thxx/optim.hpp>
 #include <thxx/dataset.hpp>
 #include <typed_argparser.hpp>
 
@@ -26,12 +27,18 @@ struct Config : thxx::net::transformer::Config
     std::string train_scp = "espnet/egs/an4/asr1/dump/train_nodev/deltafalse/feats.scp";
     std::string dev_scp = "espnet/egs/an4/asr1/dump/train_dev/deltafalse/feats.scp";
 
+    std::string json;
+    typed_argparser::ArgParser parser;
+
     // parse cmd args
     void parse(int argc, const char *const argv[])
     {
-        typed_argparser::ArgParser parser(argc, argv);
+        parser = typed_argparser::ArgParser(argc, argv);
 
-        std::string json;
+        // update default values
+        lr = 10;
+        warmup_steps = 25000;
+
         parser.add("--json", json);
         if (!json.empty())
         {
@@ -70,8 +77,13 @@ struct Config : thxx::net::transformer::Config
 
         parser.check();
 
+        json = parser.to_json();
         std::ofstream ofs("config.json");
-        ofs << parser.to_json();
+        ofs << json;
+    }
+
+    thxx::optim::NoamOptions noam_options() const {
+        return {d_model, lr, warmup_steps};
     }
 };
 
@@ -79,6 +91,7 @@ int main(int argc, const char *argv[])
 {
     Config config;
     config.parse(argc, argv);
+    std::cout << "[config] " << config.json << std::endl;
 
     torch::manual_seed(config.seed);
     std::mt19937 engine(config.seed);
@@ -110,7 +123,8 @@ int main(int argc, const char *argv[])
     using InputLayer = thxx::net::transformer::Conv2dSubsampling;
     thxx::net::Transformer<InputLayer> model(idim, odim, config);
     model->to(device);
-    torch::optim::Adam optimizer(model->parameters(), 0.01);
+    // torch::optim::Adam optimizer(model->parameters(), 0.01);
+    thxx::optim::Noam optimizer(model->parameters(), config.noam_options());
 
     using torch::autograd::make_variable;
 
@@ -181,8 +195,8 @@ int main(int argc, const char *argv[])
         {
             // torch::load(model, "model.pt");
             // torch::load(optimizer, "optimizer.pt");
-            optimizer.options.learning_rate_ *= 0.5;
-            std::cout << "the best model is loaded. lr decayed to "  << optimizer.options.learning_rate_ << std::endl;
+            // optimizer.options.learning_rate_ *= 0.5;
+            // std::cout << "the best model is loaded. lr decayed to "  << optimizer.options.learning_rate_ << std::endl;
         }
     }
 }

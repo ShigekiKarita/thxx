@@ -209,5 +209,23 @@ namespace thxx {
         open_scp(const std::string& filename) {
             return std::make_shared<kaldi::RandomAccessBaseFloatMatrixReader>("scp:" + filename);
         }
+
+        std::vector<std::string> read_char_list(std::ifstream file) {
+            std::string s = "";
+            std::int64_t i = 0;
+            std::int64_t n = 1;
+            std::vector<std::string> ret;
+            ret.push_back("<eps>"); // for CTC blank symbol
+            while (file >> s >> i) {
+                if (n == 1 && i != 1) {
+                    AT_ASSERT(false); //, "char_list does not start from 1");
+                }
+                AT_ASSERT(n == i); // , "char_list is not contiguous");
+                ret.push_back(s);
+                ++n;
+            }
+            ret.push_back("<eos>");
+            return ret;
+        }
     } // namespace dataset
 } // namespace thxx

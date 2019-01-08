@@ -183,6 +183,12 @@ namespace thxx {
                 std::int64_t batch_size = 64;
                 std::int64_t max_len_in = 512;
                 std::int64_t max_len_out = 150;
+
+                // decoding
+                std::int64_t beam_size = 1;
+                float max_len_ratio = 0;
+                float min_len_ratio = 0;
+                float penalty = 0;
             };
 
 
@@ -484,6 +490,19 @@ namespace thxx {
 
         } // namespace transformer
 
+        struct Hypothesis {
+            double score = 0;
+            std::vector<std::int64_t> tokens;
+
+            std::string to_string(const std::vector<std::string>& char_list) const {
+                std::string ret;
+                for (auto t: tokens) {
+                    ret += t < char_list.size() ? char_list[t] : "<unk>";
+                }
+                return ret;
+            }
+        };
+
         template <typename InputLayer>
         class TransformerImpl : public torch::nn::Cloneable<TransformerImpl<InputLayer>> {
         public:
@@ -536,6 +555,40 @@ namespace thxx {
                                                    this->config.label_smoothing, this->ignore_index);
                 auto acc = accuracy(pred, tgt_out, this->ignore_index);
                 return std::make_tuple(loss, acc);
+            }
+
+            auto recognize(torch::Tensor src) {
+                AT_ASSERT(src.dim() == 2); // "input shape should be (time, feat)");
+                auto device = src.device();
+                auto src_mask = pad_mask({src.size(0)}).unsqueeze(-2).to(device);
+                auto [mem, mem_mask] = this->encoder->forward(src.unsqueeze(0), src_mask);
+                std::vector<Hypothesis> n_best;
+                // TODO beam search decoding
+                if (config.beam_size == 1) {
+                    auto tgt = torch::full({1, 1}, this->sos, torch::TensorOptions().dtype(at::kLong).device(device));
+                    auto score = torch::zeros({1}, torch::TensorOptions(device));
+                    auto max_len = src.size(0);
+                    for (std::int64_t step = 0; step <= max_len; ++step) {
+                        auto tgt_mask = subsequent_mask(step + 1, tgt.device()).unsqueeze(0);
+                        auto [pred, pred_mask] = this->decoder->forward(tgt, tgt_mask, mem, mem_mask);
+                        auto prob = pred.select(1, -1).log_softmax(-1);
+                        auto [max_prob, next_id] = prob.max(1);
+                        score += max_prob;
+                        if (step == max_len) {
+                            next_id[0] = this->eos;
+                        }
+                        tgt = torch::cat({tgt, next_id.unsqueeze(1)}, 1);
+                    }
+                    std::cout << tgt << std::endl;
+                    auto ptr = tgt.data<std::int64_t>();
+                    std::vector<std::int64_t> tgt_vec(ptr, ptr + tgt.size(1));
+                    n_best.push_back({score.item<double>(), tgt_vec});
+                }
+                else {
+                    AT_ASSERT(false); // , "beam search decoding is not implemented");
+                }
+
+                return n_best;
             }
         };
 
