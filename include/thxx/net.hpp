@@ -579,8 +579,7 @@ namespace thxx {
                         }
                         tgt = torch::cat({tgt, next_id.unsqueeze(1)}, 1);
                     }
-                    std::cout << tgt << std::endl;
-                    auto ptr = tgt.data<std::int64_t>();
+                    auto ptr = tgt.template data<std::int64_t>();
                     std::vector<std::int64_t> tgt_vec(ptr, ptr + tgt.size(1));
                     n_best.push_back({score.item<double>(), tgt_vec});
                 }
